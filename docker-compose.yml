@@ -1,0 +1,39 @@
+services:
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skycar-backend
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3002/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./FromSKycat-park3-main
+      dockerfile: Dockerfile
+    container_name: skycar-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      # Live-mount host source so the container serves current code (and hot-reloads
+      # on edit) instead of a frozen snapshot baked in at image-build time.
+      - ./FromSKycat-park3-main:/app
+      # Keep the container's own (linux) node_modules; don't let the host shadow it.
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3002
+      # Docker-on-Windows doesn't propagate host FS events into the container,
+      # so Vite's watcher must poll for HMR to detect edits.
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+    restart: unless-stopped

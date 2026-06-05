@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./.venv/Scripts/python.exe -m pip install -q fastapi \"pydantic-settings>=2.2\" httpx pytest uvicorn)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -q)"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "express-session": "^1.19.0",
+    "passport": "^0.7.0",
+    "passport-line-auth": "^0.2.9"
+  },
+  "devDependencies": {
+    "@types/express-session": "^1.19.0",
+    "@types/passport": "^1.0.17"
+  }
+}
