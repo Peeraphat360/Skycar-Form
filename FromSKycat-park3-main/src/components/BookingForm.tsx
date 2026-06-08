@@ -153,14 +153,17 @@ export default function BookingForm({ booking, addNotif }: any) {
                     <span className="h-2.5 w-2.5 rounded-full bg-sky-600 shadow-sm shadow-sky-600/40" />
                     วันที่เข้าจอด <span className="text-slate-400">(CHECK-IN)</span><span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    value={form.checkinDate}
-                    min={today}
-                    onChange={(e: any) => handleChange("checkinDate", e.target.value)}
-                    aria-label="วันที่เข้าจอด"
-                    className="block w-full min-h-12 min-w-0 max-w-full box-border appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/15 hover:border-slate-300"
-                  />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={form.checkinDate}
+                      min={today}
+                      onChange={(e: any) => handleChange("checkinDate", e.target.value)}
+                      aria-label="วันที่เข้าจอด"
+                      className="block w-full min-h-12 min-w-0 max-w-full box-border appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/15 hover:border-slate-300"
+                    />
+                    <Calendar className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-sky-500" />
+                  </div>
                   <div className="flex min-h-12 items-center gap-3 rounded-xl border-l-8 border-sky-300 bg-gradient-to-r from-sky-900 to-sky-700 px-4 py-3 text-white shadow-sm">
                     <Calendar className="h-5 w-5 shrink-0 text-sky-400" />
                     <span className="text-sm font-semibold leading-6">{fmtFullThaiDate(form.checkinDate)}</span>
@@ -183,14 +186,17 @@ export default function BookingForm({ booking, addNotif }: any) {
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/40" />
                     วันที่รับรถ <span className="text-slate-400">(CHECK-OUT)</span><span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    value={form.checkoutDate}
-                    min={form.checkinDate}
-                    onChange={(e: any) => handleChange("checkoutDate", e.target.value)}
-                    aria-label="วันที่รับรถ"
-                    className="block w-full min-h-12 min-w-0 max-w-full box-border appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 hover:border-slate-300"
-                  />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={form.checkoutDate}
+                      min={form.checkinDate}
+                      onChange={(e: any) => handleChange("checkoutDate", e.target.value)}
+                      aria-label="วันที่รับรถ"
+                      className="block w-full min-h-12 min-w-0 max-w-full box-border appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 hover:border-slate-300"
+                    />
+                    <Calendar className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
+                  </div>
                   <div className="flex min-h-12 items-center gap-3 rounded-xl border-l-8 border-emerald-300 bg-gradient-to-r from-emerald-700 to-emerald-500 px-4 py-3 text-white shadow-sm">
                     <Calendar className="h-5 w-5 shrink-0 text-emerald-400" />
                     <span className="text-sm font-semibold leading-6">{fmtFullThaiDate(form.checkoutDate)}</span>
