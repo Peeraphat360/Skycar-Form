@@ -1,1 +1,5 @@
-/*    /index.html   200
+# Proxy API calls to the Render backend so the session cookie is first-party
+# (third-party cookies are blocked on iOS Safari / LINE in-app browser)
+/api/*  https://skycar-form.onrender.com/api/:splat  200
+# SPA fallback (ต้องอยู่ล่างสุด)
+/*      /index.html   200
