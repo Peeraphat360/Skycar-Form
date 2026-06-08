@@ -32,6 +32,13 @@ export default function PublicApp(props: any) {
         body { margin: 0; }
         select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2394a3b8'%3E%3Cpath d='M4.5 6L8 9.5 11.5 6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; padding-right: 36px !important; }
         input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+        /* ซ่อนไอคอนปฏิทินของ browser (Chrome/Edge) — เหลือไอคอนที่เราวางเอง
+           แต่ทำให้พื้นที่ทั้งช่องยังกดเปิดปฏิทินได้ (indicator โปร่งใสคลุมเต็มช่อง) */
+        input[type=date] { position: relative; }
+        input[type=date]::-webkit-calendar-picker-indicator {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          margin: 0; padding: 0; opacity: 0; cursor: pointer;
+        }
         .fade-in { animation: fadeIn 0.35s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         ::-webkit-scrollbar { width: 5px; }
