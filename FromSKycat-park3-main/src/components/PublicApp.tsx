@@ -2,7 +2,6 @@ import React from "react";
 import { useBookingForm } from "../hooks/useBookingForm";
 import { useNotification } from "../hooks/useNotification";
 import AppHeader from "./AppHeader";
-import HeroSection from "./HeroSection";
 import BookingForm from "./BookingForm";
 import ReceiptPage from "./ReceiptPage";
 import { Toast } from "./ui/Toast"; // เปลี่ยนให้ตรงกับชื่อไฟล์ที่คุณแยกใน /components/ui
@@ -43,7 +42,6 @@ export default function PublicApp(props: any) {
       <AppHeader />
 
       <main className="mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-10">
-        <HeroSection />
         <BookingForm booking={booking} addNotif={addNotif} />
       </main>
     </div>
