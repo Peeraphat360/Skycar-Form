@@ -159,7 +159,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                     min={today}
                     onChange={(e: any) => handleChange("checkinDate", e.target.value)}
                     aria-label="วันที่เข้าจอด"
-                    className="min-h-12 min-w-0 max-w-full box-border cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/15 hover:border-slate-300"
+                    className="block w-full min-h-12 min-w-0 max-w-full box-border cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/15 hover:border-slate-300"
                   />
                   <div className="flex min-h-12 items-center gap-3 rounded-xl border-l-8 border-sky-300 bg-gradient-to-r from-sky-900 to-sky-700 px-4 py-3 text-white shadow-sm">
                     <Calendar className="h-5 w-5 shrink-0 text-sky-400" />
@@ -189,7 +189,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                     min={form.checkinDate}
                     onChange={(e: any) => handleChange("checkoutDate", e.target.value)}
                     aria-label="วันที่รับรถ"
-                    className="min-h-12 min-w-0 max-w-full box-border cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 hover:border-slate-300"
+                    className="block w-full min-h-12 min-w-0 max-w-full box-border cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 hover:border-slate-300"
                   />
                   <div className="flex min-h-12 items-center gap-3 rounded-xl border-l-8 border-emerald-300 bg-gradient-to-r from-emerald-700 to-emerald-500 px-4 py-3 text-white shadow-sm">
                     <Calendar className="h-5 w-5 shrink-0 text-emerald-400" />
