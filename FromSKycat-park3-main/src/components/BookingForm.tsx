@@ -146,10 +146,10 @@ export default function BookingForm({ booking, addNotif }: any) {
 
           {/* วันเวลาจอดรถ */}
           <SectionCard icon={<Calendar className="w-5 h-5" />} title="วันและเวลาจอดรถ (Parking Schedule)" subtitle="กรุณาระบุวันเวลาเข้าจอดและรับรถ">
-            {/* หมายเหตุค่าบริการรับส่งนอกเวลา */}
-            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <span className="text-amber-500 text-lg leading-none mt-0.5">⚠️</span>
-              <p className="text-xs leading-relaxed text-amber-800">
+            {/* หมายเหตุค่าบริการรับส่งนอกเวลา — พื้นหลังเหลืองเด่นเพื่อเตือนลูกค้า */}
+            <div className="mb-5 flex items-start gap-2.5 rounded-xl border-2 border-amber-300 bg-amber-100 px-4 py-3 shadow-sm">
+              <span className="text-amber-600 text-lg leading-none mt-0.5">⚠️</span>
+              <p className="text-xs leading-relaxed text-amber-900">
                 <span className="font-bold">บริการรับส่งฟรี เวลา 08.00–21.00 น.</span>{" "}
                 หากก่อน 08.00 น. หรือหลัง 21.00 น. คิดค่าบริการเพิ่ม <span className="font-bold">50 บาท</span>
                 <span className="block text-[11px] text-amber-600 mt-0.5">
