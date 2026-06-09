@@ -10,6 +10,8 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   // ── State ──
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);   // กันกดยืนยันซ้ำ (ใช้คุม UI)
+  const submittingRef = useRef(false);                       // กันกดรัวๆ ใน frame เดียว (sync)
 
   // ── ข้อมูลรถจาก API ──
   const [carTypes, setCarTypes]   = useState<string[]>([]);
@@ -119,6 +121,9 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
 
   // ── Submit ส่งข้อมูลไป Backend ──
   const handleSubmit = async () => {
+    if (submittingRef.current || submitted) return;   // กันกดซ้ำ (sync — กันกดรัวๆ)
+    submittingRef.current = true;
+    setIsSubmitting(true);
     try {
       await submitBooking({
         id:            bookingIdRef.current,
@@ -142,10 +147,12 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
         total:         total,
         status:        "pending",
       });
-      setSubmitted(true);
+      setSubmitted(true);   // ไปหน้าใบเสร็จ — คง isSubmitting ไว้กันกดซ้ำ
       addNotif("บันทึกข้อมูลเรียบร้อยแล้ว", "กำลังสร้างใบเสร็จการจอง", "success");
     } catch (error: any) {
       addNotif("เกิดข้อผิดพลาด", error.message, "error");
+      submittingRef.current = false;
+      setIsSubmitting(false);   // ส่งไม่สำเร็จ → ให้กดใหม่ได้
     }
   };
 
@@ -160,6 +167,8 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
 
   const resetForm = () => {
     setSubmitted(false);
+    submittingRef.current = false;
+    setIsSubmitting(false);
     setStep(1);
     setForm(f => ({ ...f, name: "", phone: "", phoneAlt: "", plate: "", coupon: "", specialNote: "" }));
     bookingIdRef.current = `SKY-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
@@ -167,7 +176,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
 
   // ── Return ทุกอย่างรวมกัน ──
   return {
-    step, setStep, form, handleChange, submitted, setSubmitted,
+    step, setStep, form, handleChange, submitted, setSubmitted, isSubmitting,
     totalHours, priceResult, discount, total, offHoursSurcharge,
     validateStep1, validateStep2, receiptData,
     formTopRef, scrollToForm, resetForm,

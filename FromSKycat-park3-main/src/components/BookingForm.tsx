@@ -13,6 +13,7 @@ export default function BookingForm({ booking, addNotif }: any) {
     priceResult, discount, total,
     validateStep1, validateStep2,
     handleSubmit,          // ← รับจาก hook แทน local function
+    isSubmitting,          // ← กันกดยืนยันซ้ำ
     formTopRef, scrollToForm,
     carTypes, carBrands, carModels,  // ← ข้อมูลรถจาก API
   } = booking;
@@ -312,9 +313,22 @@ export default function BookingForm({ booking, addNotif }: any) {
             </button>
             <button
               onClick={handleSubmit}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5 hover:bg-emerald-600"
+              disabled={isSubmitting}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 disabled:hover:bg-emerald-500"
             >
-              <Check className="w-5 h-5" /> ยืนยันการจอง
+              {isSubmitting ? (
+                <>
+                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                  </svg>
+                  กำลังบันทึก...
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" /> ยืนยันการจอง
+                </>
+              )}
             </button>
           </div>
         </div>
