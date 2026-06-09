@@ -145,7 +145,18 @@ export default function BookingForm({ booking, addNotif }: any) {
           </SectionCard>
 
           {/* วันเวลาจอดรถ */}
-          <SectionCard icon={<Calendar className="w-5 h-5" />} title="วันและเวลาจอดรถ (Parking Schedule)" subtitle="กรุณาระบุวันเวลาเข้าจอดและรับรถ เปิดบริการ 08:00–21:00 น.">
+          <SectionCard icon={<Calendar className="w-5 h-5" />} title="วันและเวลาจอดรถ (Parking Schedule)" subtitle="กรุณาระบุวันเวลาเข้าจอดและรับรถ">
+            {/* หมายเหตุค่าบริการรับส่งนอกเวลา */}
+            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <span className="text-amber-500 text-lg leading-none mt-0.5">⚠️</span>
+              <p className="text-xs leading-relaxed text-amber-800">
+                <span className="font-bold">บริการรับส่งฟรี เวลา 08.00–21.00 น.</span>{" "}
+                หากก่อน 08.00 น. หรือหลัง 21.00 น. คิดค่าบริการเพิ่ม <span className="font-bold">50 บาท</span>
+                <span className="block text-[11px] text-amber-600 mt-0.5">
+                  Free shuttle 08:00–21:00. A 50 THB fee applies before 08:00 or after 21:00.
+                </span>
+              </p>
+            </div>
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
                 <div className="space-y-2.5">
@@ -176,7 +187,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                     onMinuteChange={(m: string) => handleChange("checkinMinute", m)}
                   />
                   <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> พิมพ์หรือกดลูกศรเพื่อเปลี่ยนชั่วโมง (08–21)
+                    <Clock className="w-3.5 h-3.5" /> พิมพ์หรือกดลูกศรเพื่อเปลี่ยนชั่วโมง (00–23)
                   </p>
                 </Field>
               </div>
@@ -209,7 +220,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                     onMinuteChange={(m: string) => handleChange("checkoutMinute", m)}
                   />
                   <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> แนะนำ 21:00 น. หรือตามเวลาเครื่องลง
+                    <Clock className="w-3.5 h-3.5" /> รูปแบบ 24 ชม. (00–23) ตามเวลาเครื่องลง
                   </p>
                 </Field>
               </div>

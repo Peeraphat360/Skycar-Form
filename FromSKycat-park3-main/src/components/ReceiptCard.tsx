@@ -25,6 +25,7 @@ export interface ReceiptData {
   priceResult: SkyPriceResult;
   discount: number;
   total: number;
+  surcharge?: number;   // ค่าบริการรับส่งนอกเวลา (ก่อน 08:00 / หลัง 21:00)
 }
 
 // ฟังก์ชันช่วยใส่ลูกน้ำ (,) ให้ตัวเลข
@@ -45,7 +46,7 @@ function fmtDate(d: string) {
 // แล้วใช้ไลบรารีวาดออกมาเป็นรูปภาพ .jpg ได้
 const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData }>(
   ({ data }, ref) => {
-    const { bookingId, form, priceResult, discount, total } = data;
+    const { bookingId, form, priceResult, discount, total, surcharge = 0 } = data;
     const today = new Date().toLocaleDateString("th-TH", {
       year: "numeric", month: "long", day: "numeric",
     });
@@ -136,6 +137,12 @@ const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData }>(
                 <span className="text-slate-600">ค่าจอดรถ ({priceResult.label})</span>
                 <span className="font-semibold text-slate-800">฿{fmt(priceResult.price)}</span>
               </div>
+              {surcharge > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-amber-600">ค่าบริการรับส่งนอกเวลา (Off-hours)</span>
+                  <span className="font-semibold text-amber-600">+฿{fmt(surcharge)}</span>
+                </div>
+              )}
               {discount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-emerald-600">ส่วนลด ({form.coupon})</span>

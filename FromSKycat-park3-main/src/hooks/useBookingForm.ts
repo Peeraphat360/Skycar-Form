@@ -78,10 +78,21 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   const outDateObj = new Date(`${form.checkoutDate}T${form.checkoutHour.padStart(2,"0")}:${form.checkoutMinute}:00`);
   const priceResult = calcSkyPrice(totalHours, inDateObj, outDateObj);
 
+  // ── ค่าบริการรับส่งนอกเวลา (ก่อน 08:00 หรือหลัง 21:00 → +50 ต่อเที่ยว) ──
+  const OFF_HOURS_FEE = 50;
+  const isOffHours = (hour: string, minute: string): boolean => {
+    const t = parseInt(hour || "0", 10) * 60 + parseInt(minute || "0", 10);
+    return t < 8 * 60 || t > 21 * 60;          // ก่อน 08:00 หรือ หลัง 21:00
+  };
+  const checkinOffHours  = isOffHours(form.checkinHour, form.checkinMinute);
+  const checkoutOffHours = isOffHours(form.checkoutHour, form.checkoutMinute);
+  const offHoursSurcharge =
+    (checkinOffHours ? OFF_HOURS_FEE : 0) + (checkoutOffHours ? OFF_HOURS_FEE : 0);
+
   // ── คูปองและส่วนลด ──
   const COUPONS: Record<string, number> = { PROMO50: 50, WELCOME100: 100, SAVE20: 20 };
   const discount = COUPONS[form.coupon] ?? 0;
-  const total    = Math.max(0, priceResult.price - discount);
+  const total    = Math.max(0, priceResult.price + offHoursSurcharge - discount);
 
   // ── Validation ──
   const validateStep1 = () => {
@@ -103,6 +114,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   const receiptData: ReceiptData = {
     bookingId: bookingIdRef.current,
     form, priceResult, discount, total,
+    surcharge: offHoursSurcharge,
   };
 
   // ── Submit ส่งข้อมูลไป Backend ──
@@ -156,7 +168,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   // ── Return ทุกอย่างรวมกัน ──
   return {
     step, setStep, form, handleChange, submitted, setSubmitted,
-    totalHours, priceResult, discount, total,
+    totalHours, priceResult, discount, total, offHoursSurcharge,
     validateStep1, validateStep2, receiptData,
     formTopRef, scrollToForm, resetForm,
     handleSubmit,

@@ -4,10 +4,9 @@ import { Select } from "./Select";
 // ─── Time Picker (ตัวเลือกเวลา) ───
 // หน้าที่: แสดงช่องกรอก/เลือก เวลาเป็นชั่วโมงและนาทีให้สวยงาม
 export function TimePicker({ hour, minute, onHourChange, onMinuteChange }: any) {
-  // แก้ไขตรงจุดนี้: ถ้าเวลาให้บริการของลานจอดรถเปลี่ยนไป ให้แก้ตัวเลขที่นี่ครับ
-  // MIN_HOUR = เปิดกี่โมง (8 โมงเช้า) | MAX_HOUR = ปิดกี่โมง (3 ทุ่ม หรือ 21)
-  const MIN_HOUR = 8;
-  const MAX_HOUR = 21;
+  // รูปแบบ 24 ชั่วโมง: เลือกได้ 00–23 น. (นอกเวลา 08:00–21:00 มีค่าบริการเพิ่ม 50 บาท)
+  const MIN_HOUR = 0;
+  const MAX_HOUR = 23;
   const minutes = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
 
   const handleHourBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -17,22 +16,16 @@ export function TimePicker({ hour, minute, onHourChange, onMinuteChange }: any) 
     onHourChange(String(v).padStart(2, "0"));
   };
 
-  // If hour is 21, lock minutes to 00
   const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onHourChange(e.target.value);
   };
 
   const handleMinuteChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const h = parseInt(hour);
-    // If hour is 21, only allow 00
-    if (h >= MAX_HOUR) {
-      onMinuteChange("00");
-      return;
-    }
     onMinuteChange(e.target.value);
   };
 
-  const effectiveMinutes = parseInt(hour) >= MAX_HOUR ? ["00"] : minutes;
+  // 24 ชั่วโมง: เลือกนาทีได้ทุกค่า
+  const effectiveMinutes = minutes;
 
   return (
     <div className="flex items-center gap-2">
