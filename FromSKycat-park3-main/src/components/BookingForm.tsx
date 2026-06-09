@@ -18,7 +18,12 @@ export default function BookingForm({ booking, addNotif }: any) {
     carTypes, carBrands, carModels,  // ← ข้อมูลรถจาก API
   } = booking;
 
-  const today = new Date().toISOString().split("T")[0];
+  // วันที่ปัจจุบันแบบ local (ไม่ใช้ toISOString ที่เป็น UTC — กันเพี้ยนข้ามวันตอนเช้ามืด)
+  const today = (() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
 
   const fmt = (n: number) => new Intl.NumberFormat("th-TH").format(n);
   const fmtDate = (d: string) => {
@@ -170,7 +175,11 @@ export default function BookingForm({ booking, addNotif }: any) {
                       type="date"
                       value={form.checkinDate}
                       min={today}
-                      onChange={(e: any) => handleChange("checkinDate", e.target.value)}
+                      onChange={(e: any) => {
+                        // ล็อกย้อนหลัง: ถ้าเลือกก่อนวันนี้ (มือถือบางตัวไม่บังคับ min) snap เป็นวันนี้
+                        const v = e.target.value;
+                        handleChange("checkinDate", v && v < today ? today : v);
+                      }}
                       aria-label="วันที่เข้าจอด"
                       className="block w-full min-h-12 min-w-0 max-w-full box-border appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/15 hover:border-slate-300"
                     />
@@ -202,8 +211,13 @@ export default function BookingForm({ booking, addNotif }: any) {
                     <input
                       type="date"
                       value={form.checkoutDate}
-                      min={form.checkinDate}
-                      onChange={(e: any) => handleChange("checkoutDate", e.target.value)}
+                      min={form.checkinDate || today}
+                      onChange={(e: any) => {
+                        // วันรับรถต้องไม่ก่อนวันเข้าจอด และไม่ย้อนหลัง
+                        const v = e.target.value;
+                        const lo = (form.checkinDate || today) > today ? form.checkinDate : today;
+                        handleChange("checkoutDate", v && v < lo ? lo : v);
+                      }}
                       aria-label="วันที่รับรถ"
                       className="block w-full min-h-12 min-w-0 max-w-full box-border appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all scheme-light [&::-webkit-date-and-time-value]:text-left focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 hover:border-slate-300"
                     />
