@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
+import { Pool } from 'pg';
 import passport from './config/passport';
 import bookingsRouter from './routes/bookings';
 import carsRouter from "./routes/cars";
@@ -14,6 +16,30 @@ const isProd = process.env.NODE_ENV === 'production';
 
 // Behind a proxy/HTTPS (prod) the secure cookie needs this.
 if (isProd) app.set('trust proxy', 1);
+
+// ── Session store ──
+// Persist sessions in Postgres (Supabase) so the LINE OAuth state and the
+// logged-in session survive process restarts / Render free-tier sleeps.
+// Without this (default MemoryStore) every restart wipes sessions, forcing
+// users to click "login with LINE" several times before it sticks.
+// Falls back to MemoryStore only when DATABASE_URL is not set (e.g. local dev).
+let sessionStore: session.Store | undefined;
+if (process.env.DATABASE_URL) {
+  const pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    // Supabase requires TLS for external connections.
+    ssl: { rejectUnauthorized: false },
+  });
+  const PgStore = connectPgSimple(session);
+  sessionStore = new PgStore({
+    pool: pgPool,
+    tableName: 'user_sessions',
+    createTableIfMissing: true, // auto-create the session table on first boot
+  });
+  console.log('🗄️  Session store: Postgres (connect-pg-simple)');
+} else {
+  console.warn('⚠️  DATABASE_URL not set — using in-memory session store (dev only)');
+}
 
 // ── CORS config ──
 // Comma-separated list of allowed origins; falls back to local dev ports.
@@ -43,6 +69,7 @@ app.use(express.json());
 // ── Session + Passport (LINE auth) ──
 app.use(session({
   name: 'skycar.sid',
+  store: sessionStore, // Postgres-backed in prod; MemoryStore when undefined
   secret: process.env.SESSION_SECRET || 'dev-insecure-secret-change-me',
   resave: false,
   saveUninitialized: false,

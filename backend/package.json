@@ -8,7 +8,6 @@
     "build": "tsc",
     "dev": "nodemon --watch src -e ts,json --exec ts-node src/index.ts",
     "start": "node dist/index.js"
-    
   },
   "keywords": [],
   "author": "",
@@ -16,19 +15,23 @@
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.106.0",
+    "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "passport": "^0.7.0",
-    "passport-line-auth": "^0.2.9"
+    "passport-line-auth": "^0.2.9",
+    "pg": "^8.21.0"
   },
   "devDependencies": {
+    "@types/connect-pg-simple": "^7.0.3",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
     "@types/node": "^25.9.1",
     "@types/passport": "^1.0.17",
+    "@types/pg": "^8.20.0",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
