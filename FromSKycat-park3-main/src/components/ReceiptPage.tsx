@@ -1,7 +1,6 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef } from "react";
 import { Toast } from "./ui/Toast";
 import ReceiptCard, { ReceiptData } from "./ReceiptCard";
-import { toJpeg } from "html-to-image";
 
 interface ReceiptPageProps {
   data: ReceiptData;
@@ -18,27 +17,6 @@ export default function ReceiptPage({
   onNewBooking,
 }: ReceiptPageProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
-  const [downloading, setDownloading] = useState(false);
-
-  const downloadReceipt = useCallback(async () => {
-    if (!receiptRef.current) return;
-    setDownloading(true);
-    try {
-      const dataUrl = await toJpeg(receiptRef.current, {
-        quality: 0.95,
-        backgroundColor: "#ffffff",
-      });
-      const link = document.createElement("a");
-      const safeName = data.form.name.replace(/\s+/g, "_");
-      // แก้ไขตรงจุดนี้: หากต้องการเปลี่ยนชื่อไฟล์รูปภาพเวลาลูกค้ากดดาวน์โหลดใบเสร็จ
-      link.download = `SkyCarPark_Receipt_${safeName}_${data.form.checkinDate}.jpg`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error("Failed to generate receipt image", err);
-    }
-    setDownloading(false);
-  }, [data]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -208,31 +186,6 @@ export default function ReceiptPage({
         {/* ── Sticky Bottom Action Bar ── */}
         <div className="action-bar fixed bottom-0 left-0 right-0 z-40 safe-area-pb">
           <div className="mx-auto max-w-lg px-4 py-3 space-y-2.5">
-
-            {/* Download receipt — primary CTA */}
-            <button
-              onClick={downloadReceipt}
-              disabled={downloading}
-              className="btn-download w-full flex items-center justify-center gap-2.5 rounded-2xl px-6 text-white font-bold"
-              style={{ height: '52px', fontSize: '0.95rem' }}
-            >
-              {downloading ? (
-                <>
-                  <svg className="spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                  </svg>
-                  <span>กำลังสร้างรูปภาพ...</span>
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 4v11" />
-                  </svg>
-                  <span>บันทึกใบเสร็จ (.jpg)</span>
-                </>
-              )}
-            </button>
 
             {/* New booking — secondary */}
             <button
