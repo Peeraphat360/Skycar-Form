@@ -153,14 +153,13 @@ export default function BookingForm({ booking, addNotif }: any) {
 
           {/* วันเวลาจอดรถ */}
           <SectionCard icon={<Calendar className="w-5 h-5" />} title="วันและเวลาจอดรถ (Parking Schedule)" subtitle="กรุณาระบุวันเวลาเข้าจอดและรับรถ">
-            {/* หมายเหตุค่าบริการรับส่งนอกเวลา — พื้นหลังเหลืองเด่นเพื่อเตือนลูกค้า */}
-            <div className="mb-5 flex items-start gap-2.5 rounded-xl border-2 border-amber-300 bg-amber-100 px-4 py-3 shadow-sm">
-              <span className="text-amber-600 text-lg leading-none mt-0.5">⚠️</span>
-              <p className="text-xs leading-relaxed text-amber-900">
-                <span className="font-bold">บริการรับส่งฟรี เวลา 08.00–21.00 น.</span>{" "}
-                หากก่อน 08.00 น. หรือหลัง 21.00 น. คิดค่าบริการเพิ่ม <span className="font-bold">50 บาท</span>
-                <span className="block text-[11px] text-amber-600 mt-0.5">
-                  Free shuttle 08:00–21:00. A 50 THB fee applies before 08:00 or after 21:00.
+            {/* หมายเหตุแจ้งลูกค้า — บริการรับส่งฟรีในเวลาทำการ */}
+            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
+              <span className="text-sky-500 text-base leading-none mt-0.5">ℹ️</span>
+              <p className="text-xs leading-relaxed text-sky-900">
+                <span className="font-bold">บริการรับส่งฟรี เวลา 08.00–21.00 น.</span>
+                <span className="block text-[11px] text-sky-600 mt-0.5">
+                  Free shuttle service 08:00–21:00.
                 </span>
               </p>
             </div>
