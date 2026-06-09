@@ -178,6 +178,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   return {
     step, setStep, form, handleChange, submitted, setSubmitted, isSubmitting,
     totalHours, priceResult, discount, total, offHoursSurcharge,
+    checkinOffHours, checkoutOffHours,
     validateStep1, validateStep2, receiptData,
     formTopRef, scrollToForm, resetForm,
     handleSubmit,

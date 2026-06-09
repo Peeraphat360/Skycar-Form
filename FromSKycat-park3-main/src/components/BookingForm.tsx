@@ -14,6 +14,7 @@ export default function BookingForm({ booking, addNotif }: any) {
     validateStep1, validateStep2,
     handleSubmit,          // ← รับจาก hook แทน local function
     isSubmitting,          // ← กันกดยืนยันซ้ำ
+    checkinOffHours, checkoutOffHours,   // ← เวลานอก 08:00–21:00 (เตือน +50)
     formTopRef, scrollToForm,
     carTypes, carBrands, carModels,  // ← ข้อมูลรถจาก API
   } = booking;
@@ -196,9 +197,15 @@ export default function BookingForm({ booking, addNotif }: any) {
                     onHourChange={(h: string) => handleChange("checkinHour", h)}
                     onMinuteChange={(m: string) => handleChange("checkinMinute", m)}
                   />
-                  <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> พิมพ์หรือกดลูกศรเพื่อเปลี่ยนชั่วโมง (00–23)
-                  </p>
+                  {checkinOffHours ? (
+                    <p className="mt-1.5 text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                      <span>⚠️</span> นอกเวลา 08:00–21:00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> เลือกชั่วโมง/นาทีได้เลย (00–23)
+                    </p>
+                  )}
                 </Field>
               </div>
               <div className="space-y-4">
@@ -234,9 +241,15 @@ export default function BookingForm({ booking, addNotif }: any) {
                     onHourChange={(h: string) => handleChange("checkoutHour", h)}
                     onMinuteChange={(m: string) => handleChange("checkoutMinute", m)}
                   />
-                  <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> รูปแบบ 24 ชม. (00–23) ตามเวลาเครื่องลง
-                  </p>
+                  {checkoutOffHours ? (
+                    <p className="mt-1.5 text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                      <span>⚠️</span> นอกเวลา 08:00–21:00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> เลือกชั่วโมง/นาทีได้เลย (00–23) ตามเวลาเครื่องลง
+                    </p>
+                  )}
                 </Field>
               </div>
             </div>
