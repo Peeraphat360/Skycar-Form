@@ -165,17 +165,16 @@ export function TimePicker({ hour, minute, onHourChange, onMinuteChange }: any) 
 
   return (
     <>
-      {/* ปุ่มแสดงเวลา */}
+      {/* ปุ่มแสดงเวลา — ขนาด/ฟอนต์เท่าช่องวันที่ */}
       <button
         type="button"
         onClick={openModal}
-        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition hover:border-sky-400 hover:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/15"
+        className="flex min-h-12 w-full box-border items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left shadow-sm transition hover:border-sky-400 hover:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/15"
       >
-        <span className="text-2xl">🕐</span>
-        <span className="text-lg font-bold text-slate-900 tabular-nums">
+        <span className="text-sm font-bold text-slate-900 tabular-nums">
           {String(hour).padStart(2, "0")} : {String(minute).padStart(2, "0")}
         </span>
-        <span className="text-xs text-slate-400 ml-0.5">น.</span>
+        <span className="ml-1.5 text-xs font-normal text-slate-400">น.</span>
       </button>
 
       {/* Modal เลือกเวลา */}
@@ -213,7 +212,7 @@ export function TimePicker({ hour, minute, onHourChange, onMinuteChange }: any) 
             {/* Preview */}
             <div className="mx-4 mb-3 mt-2 rounded-xl bg-sky-50 py-3 text-center">
               <span className="text-base font-bold text-sky-700 tabular-nums">
-                🕐 {HOURS[hIdx]} : {MINUTES[mIdx]} น.
+                {HOURS[hIdx]} : {MINUTES[mIdx]} น.
               </span>
             </div>
           </div>
