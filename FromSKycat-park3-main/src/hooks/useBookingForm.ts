@@ -117,6 +117,8 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     bookingId: bookingIdRef.current,
     form, priceResult, discount, total,
     surcharge: offHoursSurcharge,
+    surchargeIn: checkinOffHours ? OFF_HOURS_FEE : 0,
+    surchargeOut: checkoutOffHours ? OFF_HOURS_FEE : 0,
   };
 
   // ── Submit ส่งข้อมูลไป Backend ──

@@ -25,7 +25,9 @@ export interface ReceiptData {
   priceResult: SkyPriceResult;
   discount: number;
   total: number;
-  surcharge?: number;   // ค่าบริการรับส่งนอกเวลา (ก่อน 08:00 / หลัง 21:00)
+  surcharge?: number;     // รวมค่าบริการนอกเวลา
+  surchargeIn?: number;   // ขาเข้า (+50)
+  surchargeOut?: number;  // ขาออก (+50)
 }
 
 // ฟังก์ชันช่วยใส่ลูกน้ำ (,) ให้ตัวเลข
@@ -46,7 +48,7 @@ function fmtDate(d: string) {
 // แล้วใช้ไลบรารีวาดออกมาเป็นรูปภาพ .jpg ได้
 const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData }>(
   ({ data }, ref) => {
-    const { bookingId, form, priceResult, discount, total, surcharge = 0 } = data;
+    const { bookingId, form, priceResult, discount, total, surchargeIn = 0, surchargeOut = 0 } = data;
     const today = new Date().toLocaleDateString("th-TH", {
       year: "numeric", month: "long", day: "numeric",
     });
@@ -137,10 +139,16 @@ const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData }>(
                 <span className="text-slate-600">ค่าจอดรถ ({priceResult.label})</span>
                 <span className="font-semibold text-slate-800">฿{fmt(priceResult.price)}</span>
               </div>
-              {surcharge > 0 && (
+              {surchargeIn > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-amber-600">ค่าบริการรับส่งนอกเวลา (Off-hours)</span>
-                  <span className="font-semibold text-amber-600">+฿{fmt(surcharge)}</span>
+                  <span className="text-amber-600">ค่าบริการนอกเวลา (ขาเข้า)</span>
+                  <span className="font-semibold text-amber-600">+฿{fmt(surchargeIn)}</span>
+                </div>
+              )}
+              {surchargeOut > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-amber-600">ค่าบริการนอกเวลา (ขาออก)</span>
+                  <span className="font-semibold text-amber-600">+฿{fmt(surchargeOut)}</span>
                 </div>
               )}
               {discount > 0 && (
