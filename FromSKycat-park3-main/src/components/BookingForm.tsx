@@ -315,9 +315,9 @@ export default function BookingForm({ booking, addNotif }: any) {
                   เมื่อกดยืนยัน ระบบจะแสดงใบเสร็จ<br />เพื่อใช้เป็นหลักฐานการจอง
                 </p>
               </div>
-              <div>
+              <div className="text-center sm:text-right">
                 <p className="text-sky-200 text-sm font-medium">ยอดรวมโดยประมาณ</p>
-                <p className="text-2xl font-black tracking-tight mt-1">฿{fmt(total)}</p>
+                <p className="text-2xl font-black tracking-tight mt-1">{fmt(total)} บาท</p>
               </div>
             </div>
           </SectionCard>
@@ -326,7 +326,10 @@ export default function BookingForm({ booking, addNotif }: any) {
             <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
             <div className="text-xs text-amber-800 leading-relaxed">
               <strong>หมายเหตุ:</strong> กรุณาตรวจสอบข้อมูลให้ถูกต้องก่อนกดยืนยัน<br />
-              เมื่อยืนยันแล้ว คุณสามารถดาวน์โหลดใบเสร็จเพื่อนำไปส่งให้เจ้าหน้าที่ในภายหลังได้
+              เมื่อยืนยันแล้ว ระบบจะส่งสลิปการจองเข้า LINE ของคุณโดยอัตโนมัติ
+              <span className="block mt-1.5 text-[11px] text-amber-600 font-normal">
+                Note: Please review your details before confirming. Once confirmed, your booking slip will be sent to your LINE automatically.
+              </span>
             </div>
           </div>
 
