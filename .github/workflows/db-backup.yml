@@ -1,0 +1,52 @@
+name: Nightly DB backup
+
+# สำรองฐานข้อมูล Supabase (Postgres 17) เป็นไฟล์ .sql.gz ทุกคืน เก็บเป็น artifact
+# ฟรีบน GitHub Actions — DB ~12MB, dump บีบอัดแล้ว ~64KB
+#
+# ต้องตั้ง secret ก่อนใช้:  Settings → Secrets and variables → Actions → New repository secret
+#   ชื่อ:  SUPABASE_DB_URL
+#   ค่า :  postgresql://postgres.<ref>:<password>@aws-1-...pooler.supabase.com:5432/postgres
+#
+# กดรันเองได้ที่แท็บ Actions → Nightly DB backup → Run workflow
+
+on:
+  schedule:
+    # 20:00 UTC = 03:00 ตามเวลาไทย (ช่วงคนใช้น้อย)
+    - cron: "0 20 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump database (pg_dump 17 via docker)
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::error::ยังไม่ได้ตั้ง secret SUPABASE_DB_URL"
+            exit 1
+          fi
+          STAMP=$(date -u +%Y-%m-%d)
+          OUT="skycar-db-backup-${STAMP}.sql.gz"
+          echo "Dumping to ${OUT} ..."
+          # full dump (รวม public + auth.users) — ไม่เอา owner/privileges ให้กู้คืนง่าย
+          docker run --rm postgres:17-alpine \
+            pg_dump "$DB_URL" --no-owner --no-privileges \
+            | gzip > "$OUT"
+          SIZE=$(stat -c%s "$OUT")
+          echo "size: ${SIZE} bytes"
+          # กันไฟล์ว่าง/dump พัง (gzip เปล่าๆ ~20 bytes)
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "::error::ไฟล์ backup เล็กผิดปกติ (${SIZE} bytes) — dump อาจล้มเหลว"
+            exit 1
+          fi
+          echo "OUT=$OUT" >> "$GITHUB_ENV"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.OUT }}
+          path: ${{ env.OUT }}
+          retention-days: 30
+          if-no-files-found: error
