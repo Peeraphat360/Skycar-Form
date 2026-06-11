@@ -73,50 +73,6 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
-  // Allocate an available slot
-  let slotId = null;
-  try {
-    // 1. Get list of occupied slots during this period
-    const { data: occupiedBookings, error: occupiedError } = await supabase
-      .from("bookings")
-      .select("slot_id")
-      .in("status", ["PENDING", "CONFIRMED"])
-      .lt("start_time", endTime)
-      .gt("end_time", startTime);
-
-    if (occupiedError) {
-      return res.status(500).json({ success: false, error: `Failed to check occupied slots: ${occupiedError.message}` });
-    }
-
-    const occupiedSlotIds = occupiedBookings 
-      ? occupiedBookings.map((ob: any) => ob.slot_id).filter(Boolean) 
-      : [];
-
-    // 2. Query available slots
-    let slotQuery = supabase
-      .from("parking_slots")
-      .select("id")
-      .neq("status", "MAINTENANCE")
-      .limit(1);
-
-    if (occupiedSlotIds.length > 0) {
-      slotQuery = slotQuery.not("id", "in", `(${occupiedSlotIds.join(",")})`);
-    }
-
-    const { data: availableSlots, error: slotsErr } = await slotQuery;
-    if (slotsErr) {
-      return res.status(500).json({ success: false, error: `Failed to query slots: ${slotsErr.message}` });
-    }
-
-    if (!availableSlots || availableSlots.length === 0) {
-      return res.status(400).json({ error: "No available parking slots for the selected period." });
-    }
-
-    slotId = availableSlots[0].id;
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: `Slot allocation error: ${err.message}` });
-  }
-
   // Map car type from Thai display name to English db value
   const typeMapToEng: Record<string, string> = {
     "รถเก๋ง (Sedan)": "sedan",
@@ -128,34 +84,30 @@ router.post("/", async (req: Request, res: Response) => {
   };
   const mappedCarType = typeMapToEng[b.car_type] || b.car_type || null;
 
-  // Map status to uppercase, handling 'completed' -> 'CONFIRMED'
-  let insertStatus = (b.status || "PENDING").toUpperCase();
-  if (insertStatus === "COMPLETED") {
-    insertStatus = "CONFIRMED";
-  }
-
+  // จัดสรรช่อง + บันทึกการจองแบบ atomic ใน RPC เดียว — กัน double-booking เมื่อ
+  // ลูกค้าหลายคนกดจองช่วงเวลาเดียวกันพร้อมกัน (ดู sql/create_online_booking.sql)
   const { data, error } = await supabase
-    .from("bookings")
-    .insert([{
-      user_id:             userId,
-      slot_id:             slotId,
-      start_time:          startTime,
-      end_time:            endTime,
-      status:              insertStatus,
-      customer_name:       b.name.trim(),
-      customer_phone:      b.phone.trim(),
-      customer_alt_phone:  b.phone_alt || null,
-      vehicle_plate:       b.plate || null,
-      vehicle_brand:       b.car_brand || null,
-      vehicle_model:       b.car_model || null,
-      vehicle_type:        mappedCarType,
-      fee:                 b.total,
-      is_walk_in:          false,
-    }])
-    .select()
+    .rpc("create_online_booking", {
+      p_user_id:            userId,
+      p_start_time:         startTime,
+      p_end_time:           endTime,
+      p_customer_name:      b.name.trim(),
+      p_customer_phone:     b.phone.trim(),
+      p_customer_alt_phone: b.phone_alt || null,
+      p_vehicle_plate:      b.plate || null,
+      p_vehicle_brand:      b.car_brand || null,
+      p_vehicle_model:      b.car_model || null,
+      p_vehicle_type:       mappedCarType,
+      p_fee:                b.total,
+    })
     .single();
 
-  if (error) return res.status(500).json({ success: false, error: error.message });
+  if (error) {
+    if (error.message.includes("NO_SLOT_AVAILABLE")) {
+      return res.status(400).json({ error: "No available parking slots for the selected period." });
+    }
+    return res.status(500).json({ success: false, error: error.message });
+  }
   res.status(201).json({ success: true, data });
 });
 
