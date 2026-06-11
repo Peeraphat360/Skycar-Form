@@ -1,0 +1,34 @@
+name: Keep skycar-form warm
+
+# กัน Render free tier หลับ (หลับหลังไม่มี traffic 15 นาที, ปลุกใหม่ใช้ ~50 วิ)
+# ปลุกเฉพาะ skycar-form (ตัวที่ลูกค้าเจอตอน login LINE) ช่วง 08:00–20:00 น. เวลาไทย
+#
+# ⚠️ จงใจปลุกแค่ service เดียว: Render ให้ 750 ชม.ฟรี/เดือน รวมทั้ง workspace
+#    ปลุกทั้ง 3 ตัว หรือ 24 ชม. = โควต้าหมด → ทุก free service โดน suspend
+#    หน้าต่างนี้ ~360 ชม./เดือน เหลือโควต้าให้ dashboard-api/line-service ใช้จริง
+#
+# GitHub Actions cron อาจดีเลย์บ้าง (ฟรีไม่จำกัดเพราะ repo เป็น public) จึง ping
+# ทุก 5 นาทีเผื่อพลาด ถ้ายังเจอ cold start ให้ใช้ cron-job.org แทน (เสถียรกว่า)
+
+on:
+  schedule:
+    # ทุก 5 นาที ระหว่าง 01:00–12:55 UTC = 08:00–19:55 น. ไทย (ping สุดท้ายอุ่นถึง ~20:10)
+    - cron: "*/5 1-12 * * *"
+  workflow_dispatch: {}
+
+# ถ้ามีรอบใหม่มาขณะรอบเก่ายังรอ ให้ยกเลิกรอบเก่า — กันคิวสะสม
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping skycar-form /health
+        run: |
+          # --max-time 120 เผื่อรอ cold start (~50 วิ) ตอนปลุกครั้งแรก
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 120 \
+            https://skycar-form.onrender.com/health || echo "000")
+          echo "skycar-form /health -> $CODE"
+          # best-effort: ไม่ fail workflow แม้ ping พลาด (กัน email เตือนรบกวน)
