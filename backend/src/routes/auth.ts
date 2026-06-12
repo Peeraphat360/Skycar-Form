@@ -9,16 +9,25 @@ const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 router.get("/line", passport.authenticate("line"));
 
 // ── GET /auth/line/callback ── LINE redirects back here after consent
-router.get(
-  "/line/callback",
-  passport.authenticate("line", {
-    failureRedirect: `${CLIENT_URL}/login?error=line`,
-  }),
-  (_req: Request, res: Response) => {
-    // Session cookie is set; bounce the browser back to the SPA.
-    res.redirect(`${CLIENT_URL}/`);
-  }
-);
+// Custom callback (instead of the options form) so we can log + surface the
+// real failure reason in the redirect (?reason=...) for diagnosis.
+router.get("/line/callback", (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate("line", (err: any, user: Express.User | false, info: any) => {
+    if (err || !user) {
+      const reason = err?.message || info?.message || (typeof info === "string" ? info : "unknown");
+      console.error("LINE auth callback failed:", reason, err || "");
+      return res.redirect(`${CLIENT_URL}/login?error=line&reason=${encodeURIComponent(reason)}`);
+    }
+    req.logIn(user, (loginErr) => {
+      if (loginErr) {
+        console.error("LINE auth req.logIn failed:", loginErr.message);
+        return res.redirect(`${CLIENT_URL}/login?error=line&reason=${encodeURIComponent("login_" + loginErr.message)}`);
+      }
+      // Session cookie is set; bounce the browser back to the SPA.
+      return res.redirect(`${CLIENT_URL}/`);
+    });
+  })(req, res, next);
+});
 
 // ── GET /auth/me ── the endpoint the frontend interceptor calls on load
 router.get("/me", (req: Request, res: Response) => {
