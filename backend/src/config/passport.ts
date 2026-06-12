@@ -55,7 +55,8 @@ class SignedStateStore {
 }
 
 // ── Map a `users` table row → the session-friendly AuthUser shape ──
-function toAuthUser(row: any): AuthUser {
+// (exported: ใช้ใน /auth/claim ด้วย)
+export function toAuthUser(row: any): AuthUser {
   return {
     id: row.id,
     lineUserId: row.line_user_id,
