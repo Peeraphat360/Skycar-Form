@@ -1,10 +1,58 @@
 import passport from "passport";
+import crypto from "crypto";
 // passport-line-auth ships no declaration file, and ts-node doesn't always pick up
 // the ambient `declare module` in types/globals.d.ts — silence the missing-types error here.
 // @ts-ignore
 import { Strategy as LineStrategy } from "passport-line-auth";
 import { supabase } from "../db";
 import type { AuthUser } from "../types/auth";
+
+// ── Stateless OAuth state (HMAC-signed, TTL 10 นาที) ──
+// เดิม state เก็บใน session → ถ้าเบราว์เซอร์ไม่เก็บ/ไม่ส่ง cookie ขั้น kickoff
+// (เจอจริงบน Edge บางโปรไฟล์ และเสี่ยงกับ in-app browser) callback จะหา state
+// ไม่เจอ → "Unable to verify authorization request state" ทั้งที่ผู้ใช้กด login ปกติ
+// แบบใหม่: state = ts.nonce.HMAC(ts.nonce) ตรวจด้วยลายเซ็น+อายุ ไม่พึ่ง cookie เลย
+// (แลกมากับ state ที่ไม่ผูกกับ browser session — ยอมรับได้สำหรับ login flow
+// เพราะยังกัน state ปลอม/หมดอายุด้วย HMAC + TTL)
+class SignedStateStore {
+  constructor(
+    private secret: string,
+    private ttlMs: number = 10 * 60 * 1000,
+  ) {}
+
+  private sign(payload: string): string {
+    return crypto.createHmac("sha256", this.secret).update(payload).digest("base64url");
+  }
+
+  // arity 2 → passport-oauth2 เรียกแบบ store(req, callback)
+  store(_req: unknown, callback: (err: Error | null, state?: string) => void): void {
+    const payload = `${Date.now()}-${crypto.randomBytes(12).toString("base64url")}`;
+    callback(null, `${payload}.${this.sign(payload)}`);
+  }
+
+  // arity 3 → passport-oauth2 เรียกแบบ verify(req, state, callback)
+  verify(
+    _req: unknown,
+    state: string,
+    callback: (err: Error | null, ok?: boolean, info?: unknown) => void,
+  ): void {
+    const dot = (state || "").lastIndexOf(".");
+    if (dot < 0) return callback(null, false, { message: "Malformed state" });
+    const payload = state.slice(0, dot);
+    const sig = state.slice(dot + 1);
+    const expected = this.sign(payload);
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return callback(null, false, { message: "Invalid state signature" });
+    }
+    const ts = Number(payload.split("-")[0]);
+    if (!Number.isFinite(ts) || Date.now() - ts > this.ttlMs) {
+      return callback(null, false, { message: "State expired" });
+    }
+    callback(null, true);
+  }
+}
 
 // ── Map a `users` table row → the session-friendly AuthUser shape ──
 function toAuthUser(row: any): AuthUser {
@@ -87,6 +135,8 @@ if (channelID && channelSecret) {
         // "aggressive" = โชว์ตัวเลือก "เพิ่ม OA เป็นเพื่อน" ตั้งแต่หน้า consent และติ๊กไว้ให้
         // (ต้องผูก OA เข้ากับ Login channel ใน LINE Developers Console ด้วย ถึงจะมีผล)
         botPrompt: "aggressive",
+        // ใช้ state แบบเซ็นลายเซ็นแทน session store — login ไม่พึ่ง cookie ขั้น kickoff
+        store: new SignedStateStore(process.env.SESSION_SECRET || "dev-insecure-secret-change-me"),
       },
       // passport-line-auth's verify signature varies by version; grab the
       // profile + done callback positionally so we work across versions.
