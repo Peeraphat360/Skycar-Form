@@ -75,8 +75,12 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    // Cross-site cookies (SPA on a different origin) require SameSite=None + Secure in prod.
-    sameSite: isProd ? 'none' : 'lax',
+    // SameSite=Lax: the SPA and /api share one origin (from-skycarpark.onrender.com
+    // via the static-site proxy), so the session cookie is first-party. Lax is sent
+    // on the top-level GET navigation when LINE redirects back to /callback, and —
+    // unlike None — is NOT dropped by browser third-party-cookie/tracking blocking
+    // (which was breaking LINE login on Edge/Safari with `?error=line`).
+    sameSite: 'lax',
     secure: isProd,
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
   },
