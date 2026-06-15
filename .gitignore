@@ -1,0 +1,10 @@
+# ข้อมูลส่วนตัวลูกค้า (PII) — ห้าม commit ขึ้น public repo
+backend/data/
+backend/backups/
+
+# Local editor / Claude settings
+.claude/launch.json
+
+# Env / secrets
+*.env
+.env
