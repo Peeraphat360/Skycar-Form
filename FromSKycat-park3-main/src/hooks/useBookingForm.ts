@@ -2,8 +2,18 @@ import { useState, useRef, useEffect } from "react";
 import { calcSkyPrice } from "../constants/pricing";
 import { ReceiptData } from "../components/ReceiptCard";
 import { submitBooking } from "../api/bookings";
+import { getCustomerProfile, postConsent, deleteMyData } from "../api/customer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+// map vehicle_type (db value) → ชื่อประเภทไทยที่ฟอร์มใช้ (ตรงกับ routes/cars.ts)
+const TYPE_DB_TO_THAI: Record<string, string> = {
+  sedan: "รถเก๋ง (Sedan)",
+  pickup: "รถกระบะ (Pickup)",
+  suv: "รถ SUV",
+  ev: "รถไฟฟ้า (EV)",
+  supercar: "รถซุปเปอร์คาร์ (Supercar)",
+};
 
 export function useBookingForm(addNotif: (title: string, message: string, type?: string) => void) {
 
@@ -34,10 +44,52 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
       .then(r => r.json())
       .then(res => {
         setCarTypes(res.data || []);
-        if (res.data?.length) setForm(f => ({ ...f, type: res.data[0] }));
+        // ตั้ง default เฉพาะตอนยังว่าง — กันทับค่าที่ prefill จากโปรไฟล์ลูกค้าเดิม
+        if (res.data?.length) setForm(f => ({ ...f, type: f.type || res.data[0] }));
       })
       .catch(() => addNotif("โหลดข้อมูลรถไม่ได้", "ไม่สามารถเชื่อมต่อ API", "error"));
   }, []);
+
+  // ── จดจำลูกค้าเดิม: ดึงโปรไฟล์มา pre-fill + เช็ค consent PDPA (หน้า /book login แล้วเสมอ) ──
+  const [consentRequired, setConsentRequired] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const profile = await getCustomerProfile();
+      if (!profile) return;
+      setConsentRequired(!profile.user.consentPdpa);
+      const p = profile.prefill;
+      // เติมเฉพาะช่องที่ยังว่าง — ไม่ทับสิ่งที่ผู้ใช้เริ่มพิมพ์ไปแล้ว
+      setForm(f => ({
+        ...f,
+        name:     f.name     || p.name || "",
+        phone:    f.phone    || p.phone || "",
+        phoneAlt: f.phoneAlt || p.phone_alt || "",
+        plate:    f.plate    || p.plate || "",
+        type:     f.type     || TYPE_DB_TO_THAI[p.vehicle_type] || "",
+        brand:    f.brand    || p.car_brand || "",
+        model:    f.model    || p.car_model || "",
+      }));
+      if (p.name || p.plate) setPrefilled(true);
+    })();
+  }, []);
+
+  // ยอมรับ consent → บันทึกหลักฐานที่ backend
+  const acceptConsent = async () => {
+    const ok = await postConsent();
+    if (ok) setConsentRequired(false);
+    else addNotif("บันทึกความยินยอมไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง", "error");
+  };
+
+  // PDPA: ขอลบข้อมูลส่วนบุคคล → backend ลบ/ปกปิด แล้ว logout → กลับหน้า login
+  const requestErasure = async () => {
+    const ok = await deleteMyData();
+    if (ok) {
+      window.location.href = "/login";
+    } else {
+      addNotif("ลบข้อมูลไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง", "error");
+    }
+  };
 
   // ── โหลดยี่ห้อเมื่อเปลี่ยนประเภท ──
   useEffect(() => {
@@ -124,6 +176,10 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   // ── Submit ส่งข้อมูลไป Backend ──
   const handleSubmit = async () => {
     if (submittingRef.current || submitted) return;   // กันกดซ้ำ (sync — กันกดรัวๆ)
+    if (consentRequired) {                            // ต้องยอมรับ PDPA ก่อนเก็บข้อมูล
+      addNotif("กรุณายอมรับความยินยอมก่อน", "ต้องยินยอมการเก็บข้อมูลส่วนบุคคลก่อนทำการจอง", "error");
+      return;
+    }
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
@@ -185,5 +241,6 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     formTopRef, scrollToForm, resetForm,
     handleSubmit,
     carTypes, carBrands, carModels,
+    consentRequired, prefilled, acceptConsent, requestErasure,
   };
 }

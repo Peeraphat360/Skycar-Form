@@ -1,5 +1,6 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -8,14 +9,35 @@ import passport from './config/passport';
 import bookingsRouter from './routes/bookings';
 import carsRouter from "./routes/cars";
 import authRouter from "./routes/auth";
+import customerRouter from "./routes/customer";
+import { authLimiter, bookingLimiter, customerLimiter } from "./middleware/rateLimit";
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === 'production';
 
-// Behind a proxy/HTTPS (prod) the secure cookie needs this.
+// Behind a proxy/HTTPS (prod) the secure cookie + rate-limit IP detection need this.
 if (isProd) app.set('trust proxy', 1);
+
+// ── Security headers (helmet) ──
+// API ล้วน (ไม่เสิร์ฟ HTML) → ปิด CSP/COEP ที่ไม่เกี่ยวเพื่อไม่ให้กระทบ CORS/รูปจาก LINE
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// ── Force HTTPS in production (เคารพ x-forwarded-proto จาก Render proxy) ──
+if (isProd) {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.secure || req.headers['x-forwarded-proto'] === 'https') return next();
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      return res.redirect(308, `https://${req.headers.host}${req.originalUrl}`);
+    }
+    return res.status(403).json({ success: false, error: 'HTTPS required' });
+  });
+}
 
 // ── Session store ──
 // Persist sessions in Postgres (Supabase) so the LINE OAuth state and the
@@ -93,10 +115,20 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ── Routes ──
-app.use('/api/auth', authRouter);
-app.use('/api/bookings', bookingsRouter);
+// ── Routes (rate-limited on auth / booking / customer) ──
+app.use('/api/auth', authLimiter, authRouter);
+app.use('/api/bookings', bookingLimiter, bookingsRouter);
+app.use('/api/customer', customerLimiter, customerRouter);
 app.use("/api/cars", carsRouter);
+
+// ── Central error handler — ไม่ leak stack/รายละเอียดภายในออกไปหา client ──
+// (log ฝั่ง server เท่าที่จำเป็น โดยไม่พ่นข้อมูล sensitive ใน body)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err?.message || err);
+  if (res.headersSent) return;
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
 
 // ── Start Server ──
 app.listen(PORT, () => {

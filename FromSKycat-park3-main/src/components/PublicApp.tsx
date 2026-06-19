@@ -4,6 +4,7 @@ import { useNotification } from "../hooks/useNotification";
 import AppHeader from "./AppHeader";
 import BookingForm from "./BookingForm";
 import ReceiptPage from "./ReceiptPage";
+import ConsentModal from "./ConsentModal";
 import { Toast } from "./ui/Toast"; // เปลี่ยนให้ตรงกับชื่อไฟล์ที่คุณแยกใน /components/ui
 
 // ─── Main Component ───
@@ -46,10 +47,30 @@ export default function PublicApp(props: any) {
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
       `}</style>
 
+      {booking.consentRequired && <ConsentModal onAccept={booking.acceptConsent} />}
+
       <AppHeader />
 
       <main className="mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-10">
+        {booking.prefilled && (
+          <div className="mx-auto mb-4 max-w-3xl rounded-xl border border-sky-100 bg-sky-50 px-4 py-2.5 text-xs text-sky-700">
+            ✓ เราเติมข้อมูลจากการจองครั้งก่อนให้แล้ว — ตรวจสอบและแก้ไขได้ตามต้องการ
+          </div>
+        )}
+
         <BookingForm booking={booking} addNotif={addNotif} />
+
+        <div className="mx-auto mt-8 max-w-3xl text-center">
+          <button
+            onClick={() => {
+              if (window.confirm("ต้องการลบข้อมูลส่วนบุคคลของคุณทั้งหมดใช่หรือไม่? การจองที่ผ่านมาจะถูกปกปิดตัวตน และคุณจะถูกออกจากระบบ"))
+                booking.requestErasure();
+            }}
+            className="text-xs text-slate-400 underline underline-offset-2 transition hover:text-rose-500"
+          >
+            ขอลบข้อมูลส่วนบุคคลของฉัน (PDPA)
+          </button>
+        </div>
       </main>
     </div>
   );
