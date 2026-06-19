@@ -158,7 +158,10 @@ const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData }>(
                 </div>
               )}
               <div className="flex justify-between items-center pt-3 border-t border-slate-200">
-                <span className="text-sm font-bold text-slate-700">ยอดรวมโดยประมาณ</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-slate-700">ยอดรวม</span>
+                  <span className="text-xs text-slate-400">ชำระหลังรับรถ</span>
+                </div>
                 <span className="text-2xl font-black text-sky-700">฿{fmt(total)}</span>
               </div>
             </div>

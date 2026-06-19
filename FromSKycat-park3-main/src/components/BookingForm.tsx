@@ -317,8 +317,9 @@ export default function BookingForm({ booking, addNotif }: any) {
                 </p>
               </div>
               <div className="text-center sm:text-right">
-                <p className="text-sky-200 text-sm font-medium">ยอดรวมโดยประมาณ</p>
+                <p className="text-sky-200 text-sm font-medium">ยอดรวม</p>
                 <p className="text-2xl font-black tracking-tight mt-1">{fmt(total)} บาท</p>
+                <p className="text-sky-200 text-xs mt-1">ชำระหลังรับรถ</p>
               </div>
             </div>
           </SectionCard>

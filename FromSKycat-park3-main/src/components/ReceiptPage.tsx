@@ -157,9 +157,13 @@ export default function ReceiptPage({
             </svg>
           </div>
 
-          <h1 className="slide-up slide-up-2" style={{ fontFamily: "'Prompt', sans-serif", fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', marginBottom: '4px' }}>
-            จองที่จอดรถสำเร็จ!
+          <h1 className="slide-up slide-up-2" style={{ fontFamily: "'Prompt', sans-serif", fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', marginBottom: '6px' }}>
+            ทำรายการจองเสร็จสิ้น
           </h1>
+
+          <p className="slide-up slide-up-2" style={{ fontSize: '0.85rem', opacity: 0.92, lineHeight: 1.5, marginBottom: '10px', maxWidth: '20rem' }}>
+            กรุณารอแอดมินยืนยันการจองของคุณผ่านทาง LINE
+          </p>
 
           <p className="slide-up slide-up-2" style={{ fontSize: '0.8rem', opacity: 0.80, marginBottom: '6px' }}>
             เลขที่การจอง
