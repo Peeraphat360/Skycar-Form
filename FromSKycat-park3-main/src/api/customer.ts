@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, API_URL } from "./client";
 
 // รถที่บันทึกไว้ของลูกค้า (ตรงกับ public.vehicles)
 export interface SavedVehicle {
@@ -29,12 +29,20 @@ export interface CustomerProfile {
   prefill: CustomerPrefill;
 }
 
-// GET /api/customer/profile — ข้อมูลจดจำลูกค้าเดิม (ต้อง login; ส่ง cookie ผ่าน apiFetch)
+// GET /api/customer/profile — ข้อมูลจดจำลูกค้าเดิม (ต้อง login)
+// ใช้ raw fetch แทน apiFetch โดยตั้งใจ: นี่คือการดึงข้อมูลแบบ passive เพื่อ pre-fill
+// ถ้า 401/พลาด ให้ "ข้ามการ pre-fill" เฉยๆ — ห้าม dispatch UNAUTHORIZED_EVENT ไป
+// logout/redirect ผู้ใช้ (กัน loop redirect บนเบราว์เซอร์ที่ cookie ไม่ติดทันที)
 export async function getCustomerProfile(): Promise<CustomerProfile | null> {
   try {
-    return await apiFetch<CustomerProfile>("/api/customer/profile");
+    const res = await fetch(`${API_URL}/api/customer/profile`, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) return null; // ลูกค้าใหม่ / session ยังไม่พร้อม → ไม่ pre-fill (ไม่ logout)
+    return (await res.json()) as CustomerProfile;
   } catch {
-    return null; // ยังไม่ login / ลูกค้าใหม่ → ไม่ต้อง pre-fill
+    return null;
   }
 }
 
