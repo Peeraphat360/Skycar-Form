@@ -8,9 +8,3 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
   return res.status(401).json({ success: false, error: "Unauthorized" });
 }
-
-// ── Soft guard: never blocks; just makes `req.user` available downstream ──
-// (passport.session() already populates req.user; this is a readability helper.)
-export function optionalAuth(_req: Request, _res: Response, next: NextFunction) {
-  return next();
-}

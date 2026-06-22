@@ -8,7 +8,3 @@ export async function submitBooking(bookingData: object) {
     body: JSON.stringify(bookingData),
   });
 }
-
-export async function getBookings() {
-  return apiFetch("/api/bookings");
-}

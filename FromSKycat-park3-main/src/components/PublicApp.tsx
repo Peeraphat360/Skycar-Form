@@ -8,7 +8,7 @@ import ConsentModal from "./ConsentModal";
 import { Toast } from "./ui/Toast"; // เปลี่ยนให้ตรงกับชื่อไฟล์ที่คุณแยกใน /components/ui
 
 // ─── Main Component ───
-export default function PublicApp(props: any) {
+export default function PublicApp() {
   const { notifications, addNotif, dismissNotif } = useNotification();
   const booking = useBookingForm(addNotif);
 
