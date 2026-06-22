@@ -53,24 +53,39 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   // ── จดจำลูกค้าเดิม: ดึงโปรไฟล์มา pre-fill + เช็ค consent PDPA (หน้า /book login แล้วเสมอ) ──
   const [consentRequired, setConsentRequired] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
+  // เก็บค่าที่ใช้ pre-fill ไว้ (รูปแบบพร้อมใส่ฟอร์ม) เพื่อนำกลับมาใช้ตอนกด "จองใหม่"
+  const prefillRef = useRef<{
+    name: string; phone: string; phoneAlt: string; plate: string;
+    type: string; brand: string; model: string;
+  } | null>(null);
   useEffect(() => {
     (async () => {
       const profile = await getCustomerProfile();
       if (!profile) return;
       setConsentRequired(!profile.user.consentPdpa);
       const p = profile.prefill;
+      const pf = {
+        name: p.name || "",
+        phone: p.phone || "",
+        phoneAlt: p.phone_alt || "",
+        plate: p.plate || "",
+        type: TYPE_DB_TO_THAI[p.vehicle_type] || "",
+        brand: p.car_brand || "",
+        model: p.car_model || "",
+      };
+      prefillRef.current = pf; // เก็บไว้ใช้ตอน resetForm (กด "จองใหม่")
       // เติมเฉพาะช่องที่ยังว่าง — ไม่ทับสิ่งที่ผู้ใช้เริ่มพิมพ์ไปแล้ว
       setForm(f => ({
         ...f,
-        name:     f.name     || p.name || "",
-        phone:    f.phone    || p.phone || "",
-        phoneAlt: f.phoneAlt || p.phone_alt || "",
-        plate:    f.plate    || p.plate || "",
-        type:     f.type     || TYPE_DB_TO_THAI[p.vehicle_type] || "",
-        brand:    f.brand    || p.car_brand || "",
-        model:    f.model    || p.car_model || "",
+        name:     f.name     || pf.name,
+        phone:    f.phone    || pf.phone,
+        phoneAlt: f.phoneAlt || pf.phoneAlt,
+        plate:    f.plate    || pf.plate,
+        type:     f.type     || pf.type,
+        brand:    f.brand    || pf.brand,
+        model:    f.model    || pf.model,
       }));
-      if (p.name || p.plate) setPrefilled(true);
+      if (pf.name || pf.plate) setPrefilled(true);
     })();
   }, []);
 
@@ -228,7 +243,21 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     submittingRef.current = false;
     setIsSubmitting(false);
     setStep(1);
-    setForm(f => ({ ...f, name: "", phone: "", phoneAlt: "", plate: "", coupon: "", specialNote: "" }));
+    // กด "จองใหม่" → คงข้อมูลลูกค้า/รถที่เพิ่งกรอกไว้ (เหมือนเดิม) ให้จองซ้ำได้สะดวก
+    // ถ้าช่องไหนว่าง ค่อย fallback ไปค่าที่ prefill ไว้ตอนแรก; ล้างเฉพาะคูปอง/หมายเหตุ
+    const pf = prefillRef.current;
+    setForm(f => ({
+      ...f,
+      name:     f.name     || pf?.name     || "",
+      phone:    f.phone    || pf?.phone    || "",
+      phoneAlt: f.phoneAlt || pf?.phoneAlt || "",
+      plate:    f.plate    || pf?.plate    || "",
+      type:     f.type     || pf?.type     || "",
+      brand:    f.brand    || pf?.brand    || "",
+      model:    f.model    || pf?.model    || "",
+      coupon: "",
+      specialNote: "",
+    }));
     bookingIdRef.current = `SKY-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
   };
 
