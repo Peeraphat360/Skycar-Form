@@ -8,3 +8,10 @@ backend/backups/
 # Env / secrets
 *.env
 .env
+
+# Dependencies — ไม่ควร commit (ทำ repo บวม + เสี่ยงรั่ว)
+node_modules/
+
+# Compiled output — artifact ไม่ควรอยู่ใน repo
+dist/
+backend/dist/
