@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { supabase } from "../db";
 import { requireAuth } from "../middleware/auth";
 import { parseBody, bookingCreateSchema, bookingStatusSchema } from "../lib/validate";
+import { computeBookingTotal } from "../lib/pricing";
 import type { AuthUser } from "../types/auth";
 
 const router = Router();
@@ -81,6 +82,14 @@ router.post("/", async (req: Request, res: Response) => {
   };
   const mappedCarType = typeMapToEng[b.car_type ?? ""] || b.car_type || null;
 
+  // ── ราคา: คำนวณฝั่ง server เสมอ — ไม่เชื่อ b.total ที่ client ส่งมา ──
+  // (เดิมใช้ b.total ตรงๆ → ลูกค้าแก้ยอดเป็นเท่าไรก็ได้). ใช้ค่าเดียวกับ frontend
+  const { total: serverFee } = computeBookingTotal({
+    checkinDate, checkinHour, checkinMinute,
+    checkoutDate, checkoutHour, checkoutMinute,
+    coupon: b.coupon,
+  });
+
   // จัดสรรช่อง + บันทึกการจองแบบ atomic ใน RPC เดียว — กัน double-booking
   const { data, error } = await supabase
     .rpc("create_online_booking", {
@@ -94,7 +103,7 @@ router.post("/", async (req: Request, res: Response) => {
       p_vehicle_brand:      b.car_brand || null,
       p_vehicle_model:      b.car_model || null,
       p_vehicle_type:       mappedCarType,
-      p_fee:                b.total,
+      p_fee:                serverFee,
     })
     .single<{ id: string }>();
 
