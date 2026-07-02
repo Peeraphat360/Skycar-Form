@@ -17,6 +17,7 @@ export default function BookingForm({ booking, addNotif }: any) {
     checkinOffHours, checkoutOffHours,   // ← เวลานอก 08:00–21:00 (เตือน +50)
     formTopRef, scrollToForm,
     carTypes, carBrands, carModels,  // ← ข้อมูลรถจาก API
+    checkReturningByPhone, returningVisits,  // ← จำลูกค้าเดิมจากเบอร์โทร
   } = booking;
 
   // วันที่ปัจจุบันแบบ local (ไม่ใช้ toISOString ที่เป็น UTC — กันเพี้ยนข้ามวันตอนเช้ามืด)
@@ -77,6 +78,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                     const val = e.target.value;
                     if (/^\d{0,10}$/.test(val)) handleChange("phone", val);
                   }}
+                  onBlur={() => checkReturningByPhone?.(form.phone)}
                   placeholder="08X-XXX-XXXX"
                   type="tel"
                   maxLength={10}
@@ -103,6 +105,17 @@ export default function BookingForm({ booking, addNotif }: any) {
               </Field>
             </div>
           </SectionCard>
+
+          {/* ป้ายลูกค้าเก่า — โผล่เมื่อกรอกเบอร์แล้วเจอประวัติ (จำจากเบอร์โทร) */}
+          {returningVisits != null && returningVisits >= 1 && (
+            <div className="fade-in flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              <Check className="w-5 h-5 shrink-0 text-emerald-600" />
+              <span>
+                ยินดีต้อนรับกลับ! คุณเป็น<b>ลูกค้าเก่า</b> เคยใช้บริการกับเรา{" "}
+                <b>{returningVisits}</b> ครั้ง — เติมข้อมูลรถล่าสุดให้อัตโนมัติแล้ว (แก้ไขได้)
+              </span>
+            </div>
+          )}
 
           {/* ข้อมูลรถยนต์ — ดึงจาก API */}
           <SectionCard icon={<Car className="w-5 h-5" />} title="ข้อมูลรถยนต์ (Vehicle Information)" subtitle="เลือกประเภทรถก่อน จากนั้นระบบจะแสดงยี่ห้อและรุ่นรถที่ตรงกัน">

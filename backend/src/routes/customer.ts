@@ -14,6 +14,13 @@ function uid(req: Request): string {
   return (req.user as AuthUser).id;
 }
 
+// normalize เบอร์ให้เทียบกันได้: ตัดอักขระไม่ใช่ตัวเลข, แปลง +66/66 นำหน้า → 0
+function normalizePhone(raw: string): string {
+  let p = (raw || "").trim().replace(/[^\d+]/g, "");
+  p = p.replace(/^\+?66/, "0"); // +66xxxxxxxxx / 66xxxxxxxxx → 0xxxxxxxxx
+  return p.replace(/\D/g, "");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/customer/profile — ข้อมูลสำหรับ pre-fill ฟอร์มจอง
 //   { user: {…, consent}, vehicles: [...], lastBooking: {…} }
@@ -74,6 +81,53 @@ router.get("/profile", async (req: Request, res: Response) => {
     },
     vehicles: vehicles ?? [],
     prefill,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/customer/lookup?phone= — จำลูกค้าเดิมจาก "เบอร์โทร" (สะพานเชื่อมข้อมูลเก่า
+//   ที่เป็น walk-in/logbook — ไม่มี LINE — กับลูกค้าที่เพิ่ง login LINE ครั้งแรก)
+//   เบอร์เป็นตัวตนหลัก: unique ต่อคน + ลูกค้าให้ทุกครั้งที่จอง (ทะเบียน/รุ่นเปลี่ยนได้)
+//   ต้อง login ก่อน (requireAuth ครอบทั้งไฟล์); คืนเฉพาะข้อมูลเท่าที่ pre-fill ต้องใช้
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/lookup", async (req: Request, res: Response) => {
+  const phone = normalizePhone(String(req.query.phone ?? ""));
+  if (phone.length < 9) return res.json({ success: true, found: false });
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(
+      "customer_name, customer_phone, customer_alt_phone, vehicle_plate, vehicle_province, vehicle_brand, vehicle_model, vehicle_type, start_time, status",
+    )
+    .or(`customer_phone.eq.${phone},customer_alt_phone.eq.${phone}`)
+    .order("start_time", { ascending: false })
+    .limit(200);
+
+  if (error) return res.status(500).json({ success: false, error: "Lookup failed" });
+  const rows = data ?? [];
+  if (rows.length === 0) return res.json({ success: true, found: false });
+
+  const last = rows[0];
+  // จำนวนครั้งที่ใช้บริการ = booking ที่ไม่ถูกยกเลิก
+  const visitCount = rows.filter((r) => r.status !== "CANCELLED").length;
+  const plates = [...new Set(rows.map((r) => r.vehicle_plate).filter(Boolean))].slice(0, 5);
+
+  res.json({
+    success: true,
+    found: true,
+    visitCount,
+    prefill: {
+      name: last.customer_name ?? "",
+      phone: last.customer_phone ?? phone,
+      phone_alt: last.customer_alt_phone ?? "",
+      plate: last.vehicle_plate ?? "",
+      province: last.vehicle_province ?? "",
+      car_brand: last.vehicle_brand ?? "",
+      car_model: last.vehicle_model ?? "",
+      vehicle_type: last.vehicle_type ?? "",
+      color: "",
+    },
+    plates,
   });
 });
 

@@ -46,6 +46,29 @@ export async function getCustomerProfile(): Promise<CustomerProfile | null> {
   }
 }
 
+// ผลลัพธ์การค้นลูกค้าเดิมด้วยเบอร์ (จำแนกใหม่/เก่า + pre-fill จากประวัติ)
+export interface CustomerLookup {
+  found: boolean;
+  visitCount?: number;
+  prefill?: CustomerPrefill & { province?: string };
+  plates?: string[];
+}
+
+// GET /api/customer/lookup?phone= — พอลูกค้ากรอกเบอร์ครบ เช็กว่าเคยมาไหม (ต้อง login)
+// ใช้ raw fetch เหมือน getCustomerProfile: พลาด/401 → ถือว่าไม่เจอ ไม่ logout/redirect
+export async function lookupCustomerByPhone(phone: string): Promise<CustomerLookup> {
+  try {
+    const res = await fetch(`${API_URL}/api/customer/lookup?phone=${encodeURIComponent(phone)}`, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) return { found: false };
+    return (await res.json()) as CustomerLookup;
+  } catch {
+    return { found: false };
+  }
+}
+
 // POST /api/customer/consent — บันทึก consent PDPA
 export async function postConsent(): Promise<boolean> {
   try {

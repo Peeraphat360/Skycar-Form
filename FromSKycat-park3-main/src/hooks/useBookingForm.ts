@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { calcSkyPrice } from "../constants/pricing";
 import { ReceiptData } from "../components/ReceiptCard";
 import { submitBooking } from "../api/bookings";
-import { getCustomerProfile, postConsent, deleteMyData } from "../api/customer";
+import { getCustomerProfile, lookupCustomerByPhone, postConsent, deleteMyData } from "../api/customer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -88,6 +88,37 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
       if (pf.name || pf.plate) setPrefilled(true);
     })();
   }, []);
+
+  // ── จำลูกค้าเดิมจาก "เบอร์โทร" — พอกรอกเบอร์ครบ เช็กประวัติ (รองรับลูกค้าเก่าที่
+  //    เพิ่ง login LINE ครั้งแรก: ข้อมูลเดิมเป็น walk-in ไม่มี LINE → /profile หาไม่เจอ) ──
+  const [returningVisits, setReturningVisits] = useState<number | null>(null); // null=ยังไม่รู้/ลูกค้าใหม่
+  const lastLookupRef = useRef<string>("");
+  const checkReturningByPhone = async (rawPhone: string) => {
+    const digits = (rawPhone || "").replace(/\D/g, "");
+    if (digits.length < 9) { setReturningVisits(null); return; }
+    if (lastLookupRef.current === digits) return;   // กันยิงซ้ำเบอร์เดิม
+    lastLookupRef.current = digits;
+
+    const r = await lookupCustomerByPhone(digits);
+    if (!r.found || !r.prefill) { setReturningVisits(null); return; }
+    setReturningVisits(r.visitCount ?? 0);
+
+    const p = r.prefill;
+    setForm(f => {
+      // เติมรถให้ก็ต่อเมื่อผู้ใช้ยังไม่เริ่มเลือกยี่ห้อ/รุ่นเอง (default brand/model = "")
+      const noVehicleYet = !f.brand && !f.model;
+      return {
+        ...f,
+        name:     f.name     || p.name || "",
+        phoneAlt: f.phoneAlt || p.phone_alt || "",
+        plate:    f.plate    || p.plate || "",
+        type:     noVehicleYet && p.vehicle_type ? (TYPE_DB_TO_THAI[p.vehicle_type] || f.type) : f.type,
+        brand:    noVehicleYet ? (p.car_brand || f.brand) : f.brand,
+        model:    noVehicleYet ? (p.car_model || f.model) : f.model,
+      };
+    });
+    if (!prefilled && (p.name || p.plate)) setPrefilled(true);
+  };
 
   // ยอมรับ consent → บันทึกหลักฐานที่ backend
   const acceptConsent = async () => {
@@ -271,5 +302,6 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     handleSubmit,
     carTypes, carBrands, carModels,
     consentRequired, prefilled, acceptConsent, requestErasure,
+    checkReturningByPhone, returningVisits,
   };
 }
