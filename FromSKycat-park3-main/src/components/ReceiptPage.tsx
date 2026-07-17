@@ -4,14 +4,16 @@ import ReceiptCard, { ReceiptData } from "./ReceiptCard";
 
 interface ReceiptPageProps {
   data: ReceiptData;
+  waitlisted?: boolean;   // true = ช่องเต็มตอนจอง → เข้าคิวรอ (ยังไม่มีที่จอด)
   notifications: any[];
   onDismiss: (id: number) => void;
   onNewBooking: () => void;
 }
 
-// ─── ReceiptPage Component (หน้าจอแสดงผลหลังจองสำเร็จ) ───
+// ─── ReceiptPage Component (หน้าจอแสดงผลหลังจองสำเร็จ / เข้าคิวรอ) ───
 export default function ReceiptPage({
   data,
+  waitlisted = false,
   notifications,
   onDismiss,
   onNewBooking,
@@ -148,25 +150,33 @@ export default function ReceiptPage({
       <div className="receipt-page-root">
         <Toast notifications={notifications} onDismiss={onDismiss} />
 
-        {/* ── Success Banner ── */}
-        <div className="success-banner mx-auto max-w-lg bg-emerald-600/90 pb-10 pt-8 px-4 text-center text-white">
-          {/* Check icon with pulse */}
+        {/* ── Banner ── สลับโทน: เขียว = จองสำเร็จ (มีที่จอด), เหลือง = เต็ม/เข้าคิวรอ ── */}
+        <div className={`success-banner mx-auto max-w-lg pb-10 pt-8 px-4 text-center text-white ${waitlisted ? 'bg-amber-500/95' : 'bg-emerald-600/90'}`}>
+          {/* ไอคอน: เช็ค = สำเร็จ, นาฬิกา = รอคิว */}
           <div className="check-ring inline-flex items-center justify-center w-14 h-14 rounded-full bg-white/20 mb-4 slide-up">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+            {waitlisted ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
           </div>
 
           <h1 className="slide-up slide-up-2" style={{ fontFamily: "'Prompt', sans-serif", fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', marginBottom: '6px' }}>
-            ทำรายการจองเสร็จสิ้น
+            {waitlisted ? 'ตอนนี้โรงจอดเต็ม — คุณอยู่ในคิวรอแล้ว' : 'ทำรายการจองเสร็จสิ้น'}
           </h1>
 
-          <p className="slide-up slide-up-2" style={{ fontSize: '0.85rem', opacity: 0.92, lineHeight: 1.5, marginBottom: '10px', maxWidth: '20rem' }}>
-            กรุณารอแอดมินยืนยันการจองของคุณผ่านทาง LINE
+          <p className="slide-up slide-up-2" style={{ fontSize: '0.85rem', opacity: 0.92, lineHeight: 1.5, marginBottom: '10px', maxWidth: '22rem' }}>
+            {waitlisted
+              ? 'เราจะจัดที่จอดให้ตามลำดับก่อน–หลัง และแจ้งคุณทาง LINE โดยอัตโนมัติทันทีที่มีที่ว่าง'
+              : 'กรุณารอแอดมินยืนยันการจองของคุณผ่านทาง LINE'}
           </p>
 
           <p className="slide-up slide-up-2" style={{ fontSize: '0.8rem', opacity: 0.80, marginBottom: '6px' }}>
-            เลขที่การจอง
+            {waitlisted ? 'เลขที่คำขอ (รอคิว)' : 'เลขที่การจอง'}
           </p>
 
           <span className="slide-up slide-up-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold tracking-wider" style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.25)' }}>
@@ -182,7 +192,7 @@ export default function ReceiptPage({
             {/* The actual receipt */}
             <div style={{ padding: '0 0 4px' }}>
               {/* สำคัญ: ถ้าอยากแก้ "หน้าตาของใบเสร็จ หรือข้อความข้างในใบเสร็จ" ให้ไปแก้ที่ไฟล์ ReceiptCard.tsx ครับ */}
-              <ReceiptCard ref={receiptRef} data={data} />
+              <ReceiptCard ref={receiptRef} data={data} waitlisted={waitlisted} />
             </div>
           </div>
         </div>

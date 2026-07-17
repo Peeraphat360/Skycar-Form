@@ -91,6 +91,8 @@ router.post("/", async (req: Request, res: Response) => {
   });
 
   // จัดสรรช่อง + บันทึกการจองแบบ atomic ใน RPC เดียว — กัน double-booking
+  // RPC ปัจจุบัน (sql/online_booking_full_waitlist.sql) ตอนช่องเต็มจะ "ไม่ error"
+  // แต่บันทึก booking โดย slot_id = NULL = เข้าคิวรอ (waitlist) แทน
   const { data, error } = await supabase
     .rpc("create_online_booking", {
       p_user_id:            userId,
@@ -105,14 +107,16 @@ router.post("/", async (req: Request, res: Response) => {
       p_vehicle_type:       mappedCarType,
       p_fee:                serverFee,
     })
-    .single<{ id: string }>();
+    .single<{ id: string; slot_id: string | null }>();
 
   if (error) {
-    if (error.message.includes("NO_SLOT_AVAILABLE")) {
-      return res.status(400).json({ error: "No available parking slots for the selected period." });
-    }
     return res.status(500).json({ success: false, error: "Failed to create booking" });
   }
+
+  // slot_id === null → ช่องเต็ม: booking ถูกเก็บเป็น "รายการรอคิว" แล้ว (ยังไม่มีที่จอด)
+  // ระบบจะจัดช่อง + แจ้งลูกค้าทาง LINE อัตโนมัติเมื่อมีที่ว่าง (sql/waitlist_auto_assign.sql)
+  // ส่ง flag กลับให้ฟอร์มแยกหน้า "จองสำเร็จ" กับ "เข้าคิวรอ" ให้ลูกค้าเข้าใจตรงกัน
+  const waitlisted = data.slot_id === null;
 
   // ── จดจำรถของลูกค้า (เฉพาะตอน login) — pre-fill ครั้งหน้า ──
   // ทำหลัง insert booking สำเร็จ และไม่ให้พังคำขอถ้า step นี้ล้มเหลว (best-effort)
@@ -126,7 +130,7 @@ router.post("/", async (req: Request, res: Response) => {
     });
   }
 
-  res.status(201).json({ success: true, data });
+  res.status(201).json({ success: true, data, waitlisted });
 });
 
 // upsert รถเข้าโปรไฟล์ลูกค้า + ผูก bookings.vehicle_id (best-effort, ไม่ throw ออกนอก)

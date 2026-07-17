@@ -20,6 +20,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   // ── State ──
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
+  const [waitlisted, setWaitlisted] = useState(false);       // true = ตอนจองช่องเต็ม → เข้าคิวรอ (ยังไม่มีที่จอด)
   const [isSubmitting, setIsSubmitting] = useState(false);   // กันกดยืนยันซ้ำ (ใช้คุม UI)
   const submittingRef = useRef(false);                       // กันกดรัวๆ ใน frame เดียว (sync)
 
@@ -229,7 +230,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await submitBooking({
+      const resp = await submitBooking({
         id:            bookingIdRef.current,
         name:          form.name,
         phone:         form.phone,
@@ -251,8 +252,15 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
         total:         total,
         status:        "pending",
       });
-      setSubmitted(true);   // ไปหน้าใบเสร็จ — คง isSubmitting ไว้กันกดซ้ำ
-      addNotif("บันทึกข้อมูลเรียบร้อยแล้ว", "กำลังสร้างใบเสร็จการจอง", "success");
+      // backend คืน waitlisted=true เมื่อช่องเต็ม (booking ถูกเก็บเป็นรายการรอคิว)
+      const isWaitlisted = !!(resp as any)?.waitlisted;
+      setWaitlisted(isWaitlisted);
+      setSubmitted(true);   // ไปหน้าผลลัพธ์ — คง isSubmitting ไว้กันกดซ้ำ
+      if (isWaitlisted) {
+        addNotif("ตอนนี้โรงจอดเต็ม", "เราบันทึกคุณเข้าคิวรอแล้ว จะแจ้งทาง LINE อัตโนมัติเมื่อมีที่ว่าง", "info");
+      } else {
+        addNotif("บันทึกข้อมูลเรียบร้อยแล้ว", "กำลังสร้างใบเสร็จการจอง", "success");
+      }
     } catch (error: any) {
       addNotif("เกิดข้อผิดพลาด", error.message, "error");
       submittingRef.current = false;
@@ -271,6 +279,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
 
   const resetForm = () => {
     setSubmitted(false);
+    setWaitlisted(false);
     submittingRef.current = false;
     setIsSubmitting(false);
     setStep(1);
@@ -294,7 +303,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
 
   // ── Return ทุกอย่างรวมกัน ──
   return {
-    step, setStep, form, handleChange, submitted, setSubmitted, isSubmitting,
+    step, setStep, form, handleChange, submitted, setSubmitted, waitlisted, isSubmitting,
     totalHours, priceResult, discount, total, offHoursSurcharge,
     checkinOffHours, checkoutOffHours,
     validateStep1, validateStep2, receiptData,

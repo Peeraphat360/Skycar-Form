@@ -46,8 +46,8 @@ function fmtDate(d: string) {
 // ─── ReceiptCard Component ───
 // ใช้ React.forwardRef เพื่อให้หน้าจอก่อนหน้าสามารถ "ชี้" มาที่ตัว Component นี้ 
 // แล้วใช้ไลบรารีวาดออกมาเป็นรูปภาพ .jpg ได้
-const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData }>(
-  ({ data }, ref) => {
+const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData; waitlisted?: boolean }>(
+  ({ data, waitlisted = false }, ref) => {
     const { bookingId, form, priceResult, discount, total, surchargeIn = 0, surchargeOut = 0 } = data;
     const today = new Date().toLocaleDateString("th-TH", {
       year: "numeric", month: "long", day: "numeric",
@@ -67,7 +67,7 @@ const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData }>(
         <div style={{ background: "linear-gradient(135deg, #0c4a6e 0%, #0369a1 100%)" }}
           className="px-6 py-5 text-white">
             <div className="flex justify-between items-center">
-              <p className="text-xs text-white font-medium">ใบยืนยันการจอง เลขที่ :</p>
+              <p className="text-xs text-white font-medium">{waitlisted ? 'ใบรับคำขอจอง (รอคิว) เลขที่ :' : 'ใบยืนยันการจอง เลขที่ :'}</p>
               <p className="text-xs text-white font-black mt-0.5">{bookingId}</p>
             </div>
             <p className="text-xs text-white mt-2">{today}</p>

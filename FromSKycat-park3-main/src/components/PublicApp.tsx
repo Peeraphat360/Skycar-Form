@@ -16,6 +16,7 @@ export default function PublicApp() {
     return (
       <ReceiptPage
         data={booking.receiptData}
+        waitlisted={booking.waitlisted}
         notifications={notifications}
         onDismiss={dismissNotif}
         onNewBooking={booking.resetForm}
