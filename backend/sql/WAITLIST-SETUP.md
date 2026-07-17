@@ -38,6 +38,13 @@ Supabase Dashboard → **Database → Webhooks → Create a new hook**
 line-service กรอง edge เอง (`old.slot_id NULL → record.slot_id มีค่า`, ยัง PENDING, ไม่ใช่ walk-in)
 รายอื่นตอบ `sent=false, reason=not_a_slot_assign_edge` — ตั้ง event เป็น UPDATE กว้างๆ ได้ ไม่ต้องกรองที่ Supabase
 
+## ขั้นตอนที่ 3 — อัปเดต idempotency index (กันส่ง LINE ซ้ำ)
+
+`send_slot_available` ใช้ insert-first claim กันส่งซ้ำ แต่ partial unique index เดิม
+(`Sky-dashboard/skycar-line-service/notifications_idempotency.sql`) ครอบแค่
+`BOOKING_CONFIRMED`/`RECEIPT_SENT` — **ต้อง re-run ไฟล์นั้น** (เวอร์ชันล่าสุดเพิ่ม
+`SLOT_AVAILABLE` เข้า index แล้ว) ไม่งั้นถ้า webhook ยิงซ้ำ ลูกค้าจะได้ "ช่องว่างแล้ว" ซ้ำได้
+
 ## ทดสอบ
 
 - แมนนวล: `POST /notifications/{booking_id}/slot-available` (ยิงตรง ข้าม webhook)
