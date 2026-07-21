@@ -1,6 +1,6 @@
 
 import { useAuth } from "../context/AuthContext";
-import lineIcon from "../assets/LINE_Brand_icon.png";
+import lineIcon from "../assets/LINE_Brand_icon.webp";
 
 export default function AppHeader() {
   const { user, loading, login, logout } = useAuth();
@@ -10,7 +10,7 @@ export default function AppHeader() {
 
         {/* ─── ซ้าย: โลโก้ + ชื่อแบรนด์ ─── */}
         <div className="flex items-center">
-          <img src="/logo.png" alt="Sky Car Park Logo" className="h-14 w-14 object-contain" />
+          <img src="/logo.webp" alt="Sky Car Park Logo" width={56} height={56} decoding="async" className="h-14 w-14 object-contain" />
           <div className="ml-2.5">
             <p className="text-sm font-bold text-slate-900 leading-tight">Sky Car Park</p>
             <p className="text-xs text-slate-500">ที่จอดรถใกล้สนามบิน</p>
@@ -43,7 +43,7 @@ export default function AppHeader() {
               onClick={login}
               className="flex items-center gap-1.5 rounded-xl bg-[#06C755] px-3 py-2 text-sm font-semibold text-white shadow-sm shadow-[#06C755]/30 transition-all hover:opacity-90 active:scale-95"
             >
-              <img src={lineIcon} alt="" className="h-5 w-5 object-contain" />
+              <img src={lineIcon} alt="" width={20} height={20} decoding="async" className="h-5 w-5 object-contain" />
               <span>เข้าสู่ระบบ</span>
             </button>
           )}

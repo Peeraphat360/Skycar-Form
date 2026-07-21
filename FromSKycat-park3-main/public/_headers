@@ -1,0 +1,4 @@
+# Vite ใส่ content-hash ในชื่อไฟล์ /assets/* อยู่แล้ว → cache ยาว 1 ปีแบบ immutable ได้ปลอดภัย
+# (ไฟล์เปลี่ยน = ชื่อ hash เปลี่ยน จึงไม่มีปัญหา cache ค้าง)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
