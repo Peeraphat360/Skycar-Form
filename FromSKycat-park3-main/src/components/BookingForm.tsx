@@ -61,7 +61,7 @@ export default function BookingForm({ booking, addNotif }: any) {
           {/* ข้อมูลลูกค้า */}
           <SectionCard icon={<User className="w-5 h-5" />} title="ข้อมูลลูกค้า (Customer Information)" subtitle="กรุณากรอกข้อมูลส่วนตัวให้ครบถ้วน">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="ชื่อ-นามสกุล" required>
+              <Field label="ชื่อที่ใช้ในการจอง" required>
                 <Input
                   value={form.name}
                   onChange={(e: any) => {
