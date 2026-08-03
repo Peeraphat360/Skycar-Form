@@ -323,7 +323,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                 </Field>
               </div>
             </div>
-            <div className="mt-6 rounded-[18px] p-4 text-white flex flex-col sm:flex-row items-center justify-between gap-4 border border-blue-400/20 shadow-lg" style={{ background: "linear-gradient(135deg, #0d2b5e 0%, #1a3f80 40%, #1e4fa0 70%, #1a3f80 100%)" }}>
+            <div className="mt-6 overflow-hidden rounded-2xl p-4 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_4px_20px_rgba(13,43,94,0.45)] ring-1 ring-white/10" style={{ background: "linear-gradient(100deg, #0b2150 0%, #0f2d6a 30%, #1a4898 60%, #2258b8 100%)" }}>
               <div className="text-center sm:text-right">
                 <p className="text-sky-200 text-xs leading-relaxed">
                   เมื่อยืนยันสำเร็จ<br />รอแอดมินยืนยันใบเสร็จการจองของคุณผ่าน LINE
