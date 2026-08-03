@@ -172,7 +172,7 @@ export default function BookingForm({ booking, addNotif }: any) {
               <p className="text-xs leading-relaxed text-sky-900">
                 <span className="font-bold">บริการรับส่งฟรี เวลา 06.00-24.00 น.</span>
                 <span className="block text-[11px] text-sky-600 mt-0.5">
-                  Free shuttle service 06.00-24.00.
+                  Free shuttle service 06.00-24.00
                 </span>
               </p>
             </div>
