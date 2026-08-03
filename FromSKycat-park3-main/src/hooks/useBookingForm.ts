@@ -191,9 +191,25 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     (checkinOffHours ? OFF_HOURS_FEE : 0) + (checkoutOffHours ? OFF_HOURS_FEE : 0);
 
   // ── คูปองและส่วนลด ──
-  const COUPONS: Record<string, number> = { PROMO50: 50, WELCOME100: 100, SAVE20: 20 };
-  const discount = COUPONS[form.coupon] ?? 0;
+  // COUPONS: รายการโค้ดส่วนลด (โค้ด → จำนวนเงินลด)
+  const COUPONS: Record<string, number> = { PROMO50: 50, WELCOME100: 100, SAVE20: 20, SKY20: 20 };
+  // appliedCoupon = โค้ดที่ลูกค้ากด "ใช้คูปอง" แล้ว (ไม่ใช่ form.coupon ที่กำลังพิมพ์)
+  const [appliedCoupon, setAppliedCoupon] = useState<string>("");
+  const [couponError, setCouponError] = useState<string>("");
+  const discount = COUPONS[appliedCoupon] ?? 0;
   const total    = Math.max(0, priceResult.price + offHoursSurcharge - discount);
+
+  const applyCoupon = () => {
+    const code = form.coupon.trim().toUpperCase();
+    if (!code) { setCouponError("กรุณาพิมพ์โค้ดส่วนลดก่อน"); return; }
+    if (COUPONS[code] !== undefined) {
+      setAppliedCoupon(code);
+      setCouponError("");
+    } else {
+      setAppliedCoupon("");
+      setCouponError("โค้ดส่วนลดไม่ถูกต้องหรือหมดอายุแล้ว");
+    }
+  };
 
   // ── Validation ──
   const validateStep1 = () => {
@@ -298,6 +314,8 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
       coupon: "",
       specialNote: "",
     }));
+    setAppliedCoupon("");
+    setCouponError("");
     bookingIdRef.current = `SKY-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
   };
 
@@ -312,5 +330,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     carTypes, carBrands, carModels,
     consentRequired, prefilled, acceptConsent, requestErasure,
     checkReturningByPhone, returningVisits,
+    appliedCoupon, applyCoupon, couponError,
+    removeCoupon: () => { setAppliedCoupon(""); setCouponError(""); setForm(f => ({ ...f, coupon: "" })); },
   };
 }

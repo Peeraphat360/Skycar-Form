@@ -12,12 +12,13 @@ export default function BookingForm({ booking, addNotif }: any) {
     form, handleChange,
     priceResult, discount, total,
     validateStep1, validateStep2,
-    handleSubmit,          // ← รับจาก hook แทน local function
-    isSubmitting,          // ← กันกดยืนยันซ้ำ
-    checkinOffHours, checkoutOffHours,   // ← เวลานอก 08:00–21:00 (เตือน +50)
+    handleSubmit,
+    isSubmitting,
+    checkinOffHours, checkoutOffHours,
     formTopRef, scrollToForm,
-    carTypes, carBrands, carModels,  // ← ข้อมูลรถจาก API
-    checkReturningByPhone, returningVisits,  // ← จำลูกค้าเดิมจากเบอร์โทร
+    carTypes, carBrands, carModels,
+    checkReturningByPhone, returningVisits,
+    appliedCoupon, applyCoupon, couponError, removeCoupon,
   } = booking;
 
   // วันที่ปัจจุบันแบบ local (ไม่ใช้ toISOString ที่เป็น UTC — กันเพี้ยนข้ามวันตอนเช้ามืด)
@@ -311,14 +312,47 @@ export default function BookingForm({ booking, addNotif }: any) {
               <div className="border-t border-dashed border-slate-200" />
               <div className="pt-2 pb-2">
                 <Field label="โค้ดส่วนลด (Coupon Code)">
-                  <Input
-                    value={form.coupon}
-                    onChange={(e: any) => handleChange("coupon", e.target.value.toUpperCase())}
-                    placeholder="(ถ้ามี)"
-                    className="uppercase bg-slate-50"
-                  />
-                  {discount > 0 && (
-                    <p className="mt-1 text-xs font-bold text-emerald-600">✓ ส่วนลด ฿{fmt(discount)} บาท</p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.coupon}
+                      onChange={(e: any) => handleChange("coupon", e.target.value.toUpperCase())}
+                      onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); applyCoupon(); } }}
+                      placeholder="เช่น SKY20"
+                      className="uppercase bg-slate-50"
+                      disabled={!!appliedCoupon}
+                    />
+                    {appliedCoupon ? (
+                      <button
+                        type="button"
+                        onClick={removeCoupon}
+                        className="shrink-0 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-200"
+                      >
+                        ยกเลิก
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={applyCoupon}
+                        className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-emerald-500/20 transition hover:bg-emerald-600 active:scale-95"
+                      >
+                        ใช้คูปอง
+                      </button>
+                    )}
+                  </div>
+                  {/* สถานะหลังกดปุ่ม */}
+                  {appliedCoupon && discount > 0 && (
+                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <p className="text-xs font-bold text-emerald-700">
+                        ใช้โค้ด <span className="font-black">{appliedCoupon}</span> สำเร็จ — ลด ฿{fmt(discount)} บาท
+                      </p>
+                    </div>
+                  )}
+                  {couponError && (
+                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+                      <span className="text-red-500 text-xs">✕</span>
+                      <p className="text-xs font-semibold text-red-600">{couponError}</p>
+                    </div>
                   )}
                 </Field>
               </div>
