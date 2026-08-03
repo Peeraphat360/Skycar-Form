@@ -211,7 +211,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                   />
                   {checkinOffHours ? (
                     <p className="mt-1.5 text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-                      <span>⚠️</span> นอกเวลา 08:00–21:00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
+                      <span>⚠️</span> นอกเวลา 06.00-24.00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
                     </p>
                   ) : (
                     <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
@@ -255,7 +255,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                   />
                   {checkoutOffHours ? (
                     <p className="mt-1.5 text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-                      <span>⚠️</span> นอกเวลา 08:00–21:00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
+                      <span>⚠️</span> นอกเวลา 06.00-24.00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
                     </p>
                   ) : (
                     <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
@@ -291,7 +291,7 @@ export default function BookingForm({ booking, addNotif }: any) {
             <div className="flex flex-col gap-4 px-2 sm:px-6">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-800 mb-1">ข้อมูลลูกค้า</p>
-                <ReviewRow label="ชื่อ-นามสกุล" value={form.name} />
+                <ReviewRow label="ชื่อที่ใช้ในการจอง" value={form.name} />
                 <ReviewRow label="เบอร์โทร" value={`${form.phone}${form.phoneAlt ? ` / ${form.phoneAlt}` : ""}`} />
               </div>
               <div className="border-t border-dashed border-slate-200" />
@@ -323,7 +323,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                 </Field>
               </div>
             </div>
-            <div className="mt-6 rounded-2xl bg-sky-700 p-4 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="mt-6 rounded-[18px] p-4 text-white flex flex-col sm:flex-row items-center justify-between gap-4 border border-blue-400/20 shadow-lg" style={{ background: "linear-gradient(135deg, #0d2b5e 0%, #1a3f80 40%, #1e4fa0 70%, #1a3f80 100%)" }}>
               <div className="text-center sm:text-right">
                 <p className="text-sky-200 text-xs leading-relaxed">
                   เมื่อยืนยันสำเร็จ<br />รอแอดมินยืนยันใบเสร็จการจองของคุณผ่าน LINE
