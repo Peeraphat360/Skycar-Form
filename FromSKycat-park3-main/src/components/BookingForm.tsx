@@ -204,7 +204,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                     <span className="text-sm font-semibold leading-6">{fmtFullThaiDate(form.checkinDate)}</span>
                   </div>
                 </div>
-                <Field label="เวลาเข้าจอด (08:00–21:00 น.)">
+                <Field label="เวลาเข้าจอด (06:00–24:00 น.)">
                   <TimePicker
                     hour={form.checkinHour} minute={form.checkinMinute}
                     onHourChange={(h: string) => handleChange("checkinHour", h)}
@@ -212,7 +212,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                   />
                   {checkinOffHours ? (
                     <p className="mt-1.5 text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-                      <span>⚠️</span> นอกเวลา 06.00-24.00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
+                      <span>⚠️</span> นอกเวลา 06:00–24:00 น. (ก่อน 06:00 น.) — คิดค่าบริการรับส่งเพิ่ม 50 บาท
                     </p>
                   ) : (
                     <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
@@ -248,7 +248,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                     <span className="text-sm font-semibold leading-6">{fmtFullThaiDate(form.checkoutDate)}</span>
                   </div>
                 </div>
-                <Field label="เวลารับรถ (08:00–21:00 น.)">
+                <Field label="เวลารับรถ (06:00–24:00 น.)">
                   <TimePicker
                     hour={form.checkoutHour} minute={form.checkoutMinute}
                     onHourChange={(h: string) => handleChange("checkoutHour", h)}
@@ -256,7 +256,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                   />
                   {checkoutOffHours ? (
                     <p className="mt-1.5 text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-                      <span>⚠️</span> นอกเวลา 06.00-24.00 น. — คิดค่าบริการรับส่งเพิ่ม 50 บาท
+                      <span>⚠️</span> นอกเวลา 06:00–24:00 น. (ก่อน 06:00 น.) — คิดค่าบริการรับส่งเพิ่ม 50 บาท
                     </p>
                   ) : (
                     <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">

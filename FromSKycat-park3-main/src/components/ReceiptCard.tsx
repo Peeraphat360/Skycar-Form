@@ -209,7 +209,7 @@ const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData; waitli
               📞 ติดต่อสอบถาม: <strong style={{ color: '#64748b' }}>082-325-8380</strong>
             </p>
             <p style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-              เปิดให้บริการ 08:00–21:00 น. ทุกวัน
+              เปิดให้บริการ 06:00–24:00 น. ทุกวัน
             </p>
           </div>
         </div>

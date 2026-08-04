@@ -179,11 +179,11 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
   const outDateObj = new Date(`${form.checkoutDate}T${form.checkoutHour.padStart(2,"0")}:${form.checkoutMinute}:00`);
   const priceResult = calcSkyPrice(totalHours, inDateObj, outDateObj);
 
-  // ── ค่าบริการรับส่งนอกเวลา (ก่อน 08:00 หรือหลัง 21:00 → +50 ต่อเที่ยว) ──
+  // ── ค่าบริการรับส่งนอกเวลา (นอกเวลา 06:00–24:00 น. คือก่อน 06:00 น. → +50 ต่อเที่ยว) ──
   const OFF_HOURS_FEE = 50;
   const isOffHours = (hour: string, minute: string): boolean => {
     const t = parseInt(hour || "0", 10) * 60 + parseInt(minute || "0", 10);
-    return t < 8 * 60 || t > 21 * 60;          // ก่อน 08:00 หรือ หลัง 21:00
+    return t < 6 * 60;                          // ก่อน 06:00 น.
   };
   const checkinOffHours  = isOffHours(form.checkinHour, form.checkinMinute);
   const checkoutOffHours = isOffHours(form.checkoutHour, form.checkoutMinute);
