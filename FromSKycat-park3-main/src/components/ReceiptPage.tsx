@@ -182,6 +182,22 @@ export default function ReceiptPage({
           <span className="slide-up slide-up-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold tracking-wider" style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.25)' }}>
             {data.bookingId}
           </span>
+
+          {/* ── ยอดรวมราคา ── */}
+          {!waitlisted && (
+            <div className="slide-up slide-up-3 mt-5 mx-auto w-full max-w-xs rounded-2xl px-5 py-4" style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.30)' }}>
+              <p style={{ fontSize: '0.72rem', opacity: 0.85, marginBottom: '4px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>ยอดชำระ (Total)</p>
+              <p style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+                ฿{new Intl.NumberFormat('th-TH').format(data.total)}
+              </p>
+              {data.discount > 0 && (
+                <p style={{ fontSize: '0.72rem', opacity: 0.80, marginTop: '2px' }}>
+                  ประหยัด ฿{new Intl.NumberFormat('th-TH').format(data.discount)} (คูปอง)
+                </p>
+              )}
+              <p style={{ fontSize: '0.7rem', opacity: 0.70, marginTop: '6px' }}>ชำระเงินที่หน้าร้านหลังรับรถ</p>
+            </div>
+          )}
         </div>
 
         {/* ── Main content ── */}

@@ -71,7 +71,34 @@ const ReceiptCard = React.forwardRef<HTMLDivElement, { data: ReceiptData; waitli
               <p className="text-xs text-white font-black mt-0.5">{bookingId}</p>
             </div>
             <p className="text-xs text-white mt-2">{today}</p>
+
+            {/* ── ยอดรวมราคาใน header ── */}
+            {!waitlisted && (
+              <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.20)' }}
+                className="flex justify-between items-center">
+                <div>
+                  <p style={{ fontSize: '0.68rem', opacity: 0.75, letterSpacing: '0.06em', textTransform: 'uppercase' }}>ยอดชำระทั้งหมด</p>
+                  <p style={{ fontSize: '0.65rem', opacity: 0.60, marginTop: '1px' }}>ชำระที่หน้าร้านหลังรับรถ</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {discount > 0 && (
+                    <p style={{ fontSize: '0.68rem', opacity: 0.70, textDecoration: 'line-through', marginBottom: '1px' }}>
+                      ฿{fmt(priceResult.price + (surchargeIn + surchargeOut))}
+                    </p>
+                  )}
+                  <p style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                    ฿{fmt(total)}
+                  </p>
+                  {discount > 0 && (
+                    <p style={{ fontSize: '0.65rem', opacity: 0.80, marginTop: '2px', color: '#86efac' }}>
+                      ประหยัด ฿{fmt(discount)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
         </div>
+
 
         {/* ── Body (เนื้อหาใบเสร็จ) ── */}
         <div className="px-8 py-6 space-y-5 bg-white">
