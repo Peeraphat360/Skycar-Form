@@ -261,7 +261,7 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
         checkout_date: form.checkoutDate,
         checkout_hour: form.checkoutHour,
         checkout_minute: form.checkoutMinute,
-        coupon:        form.coupon || null,
+        coupon:        appliedCoupon || (form.coupon ? form.coupon.trim().toUpperCase() : null),
         discount:      discount,
         price_label:   priceResult.label,
         period:        priceResult.type,

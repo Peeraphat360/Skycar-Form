@@ -85,7 +85,7 @@ function isOffHours(hour: string, minute: string): boolean {
 }
 
 // ── คูปองและส่วนลด (ตรงกับ useBookingForm.ts) ──
-const COUPONS: Record<string, number> = { PROMO50: 50, WELCOME100: 100, SAVE20: 20 };
+const COUPONS: Record<string, number> = { PROMO50: 50, WELCOME100: 100, SAVE20: 20, SKY20: 20 };
 
 export interface PricingInput {
   checkinDate: string;
