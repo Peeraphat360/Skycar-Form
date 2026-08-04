@@ -317,7 +317,7 @@ export default function BookingForm({ booking, addNotif }: any) {
                       value={form.coupon}
                       onChange={(e: any) => handleChange("coupon", e.target.value.toUpperCase())}
                       onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); applyCoupon(); } }}
-                      placeholder="เช่น SKY20"
+                      placeholder="เช่น CUPON20"
                       className="uppercase bg-slate-50"
                       disabled={!!appliedCoupon}
                     />
@@ -366,17 +366,18 @@ export default function BookingForm({ booking, addNotif }: any) {
               <div className="text-center sm:text-right">
                 <p className="text-sky-200 text-sm font-medium">ยอดรวม</p>
                 {discount > 0 && (
-                  <p className="text-xs text-amber-300 font-bold mt-0.5 line-through opacity-70">
-                    {fmt(priceResult.price + offHoursSurcharge)} บาท
-                  </p>
-                )}
-                <p className="text-2xl font-black tracking-tight mt-0.5">{fmt(total)} บาท</p>
-                {discount > 0 && (
                   <p className="text-xs font-black text-amber-400 mt-1 tracking-wide">
                     ส่วนลด&nbsp;
                     <span className="text-amber-300">-฿{fmt(discount)}</span>
                   </p>
                 )}
+                <p className="text-2xl font-black tracking-tight mt-0.5">{fmt(total)} บาท</p>
+                {discount > 0 && (
+                  <p className="text-xs text-amber-300 font-bold mt-0.5 line-through opacity-70">
+                    {fmt(priceResult.price + offHoursSurcharge)} บาท
+                  </p>
+                )}
+
                 <p className="text-sky-200 text-xs mt-1">ชำระหลังรับรถ</p>
               </div>
             </div>
