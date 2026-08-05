@@ -26,6 +26,7 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
   const velocityRef = useRef(0);
   const lastY = useRef(0);
   const lastTime = useRef(0);
+  const scrollTimer = useRef<any>(null);
 
   const scrollToIndex = useCallback((index: number, smooth = true) => {
     const el = containerRef.current;
@@ -44,7 +45,7 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
     if (!el) return;
     const snapped = Math.round(el.scrollTop / ITEM_HEIGHT);
     const clamped = Math.max(0, Math.min(items.length - 1, snapped));
-    scrollToIndex(clamped);
+    scrollToIndex(clamped, true);
     onSelect(clamped);
   }, [items.length, onSelect, scrollToIndex]);
 
@@ -59,10 +60,11 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
     lastY.current = e.clientY;
     lastTime.current = Date.now();
     velocityRef.current = 0;
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    if (animFrame.current) cancelAnimationFrame(animFrame.current);
     try {
       el.setPointerCapture(e.pointerId);
     } catch (_) {}
-    if (animFrame.current) cancelAnimationFrame(animFrame.current);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -95,14 +97,13 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
     // ถ้าเป็นการกดคลิกเลือกตัวเลขโดยไม่ได้ลาก (Click/Tap)
     if (!hasMoved.current) {
       const rect = el.getBoundingClientRect();
-      const clickY = e.clientY - rect.top;
+      const clickY = (e.clientY || startY.current) - rect.top;
       const scrollY = el.scrollTop;
-      const clickedIndex = Math.floor((clickY + scrollY - ITEM_HEIGHT * 2) / ITEM_HEIGHT);
-      if (clickedIndex >= 0 && clickedIndex < items.length) {
-        scrollToIndex(clickedIndex, true);
-        onSelect(clickedIndex);
-        return;
-      }
+      const rawIndex = Math.floor((clickY + scrollY - ITEM_HEIGHT * 2) / ITEM_HEIGHT);
+      const clickedIndex = Math.max(0, Math.min(items.length - 1, rawIndex));
+      scrollToIndex(clickedIndex, true);
+      onSelect(clickedIndex);
+      return;
     }
 
     // ถ้าเป็นการลากเลื่อน (Drag/Fling)
@@ -114,6 +115,15 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
       animFrame.current = requestAnimationFrame(momentum);
     };
     animFrame.current = requestAnimationFrame(momentum);
+  };
+
+  // รองรับการเลื่อนผ่านลูกกลิ้งเมาส์ (Mouse wheel / Trackpad scroll)
+  const handleScroll = () => {
+    if (isDragging.current) return;
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      snapToNearest();
+    }, 120);
   };
 
   return (
@@ -138,6 +148,7 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onScroll={handleScroll}
         style={{
           height: DRUM_HEIGHT, overflowY: "scroll", scrollbarWidth: "none",
           WebkitOverflowScrolling: "touch", cursor: "grab", userSelect: "none",
