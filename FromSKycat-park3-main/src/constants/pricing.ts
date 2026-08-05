@@ -12,6 +12,9 @@ const DAY_RATES_EXTRA: Record<number, number> = {
   14: 1450, 15: 1550, 16: 1650, 17: 1750, 18: 1850, 19: 1950,
 };
 
+export const MONTHLY_RATE = 2000;
+export const MONTH_EXTRA_DAY_RATE = 67;
+
 export interface SkyPriceResult {
   price: number;
   label: string;
@@ -33,7 +36,7 @@ function calcDayPrice(totalHours: number): { price: number; label: string } {
   const fullDays = Math.floor(totalHours / 24);
   const remainHours = totalHours % 24;
 
-  if (fullDays >= 20) return { price: 2000, label: "รายเดือน" };
+  if (fullDays >= 20) return { price: MONTHLY_RATE, label: "1 เดือน" };
 
   const basePrice = DAY_RATES[fullDays] ?? 150;
   const extraPrice = DAY_RATES_EXTRA[fullDays] ?? basePrice + 75;
@@ -46,8 +49,55 @@ function calcDayPrice(totalHours: number): { price: number; label: string } {
   }
   // เกินมาก → ปัดขึ้นวันถัดไป
   const nextDay = fullDays + 1;
-  if (nextDay >= 20) return { price: 2000, label: "รายเดือน" };
+  if (nextDay >= 20) return { price: MONTHLY_RATE, label: "1 เดือน" };
   return { price: DAY_RATES[nextDay] ?? basePrice + 150, label: `${nextDay} วัน` };
+}
+
+// ─── คำนวณเศษวัน/ชั่วโมงที่เกินจากรายเดือน (วันละ 67 บาท) ───
+function calcExtraAfterMonth(remainHours: number): {
+  price: number;
+  label: string;
+  isFullMonth: boolean;
+} {
+  if (remainHours <= 2) {
+    return { price: 0, label: "", isFullMonth: false };
+  }
+
+  const fullDays = Math.floor(remainHours / 24);
+  const extraHours = remainHours % 24;
+
+  // ถ้าเศษวันเกินมาถึง 20 วันขึ้นไป → นับเป็น 1 เดือน (2,000 บาท)
+  if (fullDays >= 20) {
+    return { price: MONTHLY_RATE, label: "1 เดือน", isFullMonth: true };
+  }
+
+  const basePrice = fullDays * MONTH_EXTRA_DAY_RATE;
+  const halfDayExtra = 35; // ครึ่งวัน (2-18 ชม.) คิด 35 บาท
+
+  // ไม่เกิน 2 ชม. (grace period)
+  if (extraHours === 0 || extraHours <= 2) {
+    if (fullDays === 0) return { price: 0, label: "", isFullMonth: false };
+    return { price: basePrice, label: `${fullDays} วัน`, isFullMonth: false };
+  }
+
+  // เกินมา 2-18 ชม.
+  if (extraHours <= 18) {
+    if (fullDays === 0) {
+      return { price: halfDayExtra, label: `${Math.round(extraHours)} ชั่วโมง`, isFullMonth: false };
+    }
+    return {
+      price: basePrice + halfDayExtra,
+      label: `${fullDays} วัน ${Math.round(extraHours)} ชั่วโมง`,
+      isFullMonth: false,
+    };
+  }
+
+  // เกิน > 18 ชม. → ปัดขึ้นเป็นอีก 1 วัน
+  const nextDay = fullDays + 1;
+  if (nextDay >= 20) {
+    return { price: MONTHLY_RATE, label: "1 เดือน", isFullMonth: true };
+  }
+  return { price: nextDay * MONTH_EXTRA_DAY_RATE, label: `${nextDay} วัน`, isFullMonth: false };
 }
 
 // ─── นับเดือนแบบ Calendar (วันเดียวกันของเดือนถัดไป = 1 เดือน) ───
@@ -77,42 +127,7 @@ export function calcSkyPrice(
   outDate?: Date
 ): SkyPriceResult {
 
-  // ถ้ามีวันที่จริง และเวลารวม >= 20 วัน → คำนวณเดือนแบบ calendar
-  if (inDate && outDate && totalHours >= 480) {
-    const { months, remainMs } = countCalendarMonths(inDate, outDate);
-    const monthPrice = months * 2000;
-
-    if (remainMs <= 0 || months === 0) {
-      // ครบเดือนพอดีหรือยังไม่ถึง 1 เดือน (กรณี edge)
-      if (months === 0) {
-        // fallthrough ไปคำนวณแบบวัน (จะ hit >=20 วัน แต่ inDate/outDate ไม่ได้ส่ง)
-        // ไม่ควรเกิด เพราะ totalHours >= 480 แต่ months = 0 หมายถึง < 1 เดือน calendar
-        const day = calcDayPrice(totalHours);
-        return { price: day.price, label: day.label, type: "day" };
-      }
-      return {
-        price: monthPrice,
-        label: `${months} เดือน`,
-        type: "month",
-        monthCount: months,
-      };
-    }
-
-    // มีเศษวัน/ชั่วโมงหลังครบเดือน → คำนวณเศษแบบปกติ
-    const remainHours = remainMs / 3600000;
-    const remainPart = calcDayPrice(remainHours);
-    const total = monthPrice + remainPart.price;
-
-    return {
-      price: total,
-      label: `${months} เดือน + ${remainPart.label}`,
-      type: "month",
-      monthCount: months,
-      remainLabel: remainPart.label,
-    };
-  }
-
-  // < 20 วัน หรือไม่มีวันที่ → คิดแบบวันปกติ
+  // < 20 วัน (480 ชม.) → คิดแบบวันปกติ (วันที่ 1-19)
   if (totalHours < 480) {
     const day = calcDayPrice(totalHours);
     return {
@@ -122,15 +137,85 @@ export function calcSkyPrice(
     };
   }
 
-  // Fallback กรณีไม่มี inDate/outDate แต่ totalHours >= 480
+  // มีวันที่จริง และเวลารวม >= 20 วัน (480 ชม.)
+  if (inDate && outDate) {
+    const { months, remainMs } = countCalendarMonths(inDate, outDate);
+
+    // กรณี 20-30 วัน แต่ยังไม่ครบ 1 เดือนตามปฏิทิน (months = 0)
+    if (months === 0) {
+      return {
+        price: MONTHLY_RATE,
+        label: "1 เดือน",
+        type: "month",
+        monthCount: 1,
+      };
+    }
+
+    const remainHours = remainMs > 0 ? remainMs / 3600000 : 0;
+    const extra = calcExtraAfterMonth(remainHours);
+
+    // ถ้าเศษที่เกินมาถึง 20 วัน → นับเพิ่มเป็นอีก 1 เดือน
+    if (extra.isFullMonth) {
+      const totalMonths = months + 1;
+      return {
+        price: totalMonths * MONTHLY_RATE,
+        label: `${totalMonths} เดือน`,
+        type: "month",
+        monthCount: totalMonths,
+      };
+    }
+
+    // มีเศษวันเกินมา (1-19 วัน คิดวันละ 67 บาท)
+    if (extra.price > 0 && extra.label) {
+      return {
+        price: months * MONTHLY_RATE + extra.price,
+        label: `${months} เดือน + ${extra.label}`,
+        type: "month",
+        monthCount: months,
+        remainLabel: extra.label,
+      };
+    }
+
+    // ครบเดือนพอดี
+    return {
+      price: months * MONTHLY_RATE,
+      label: `${months} เดือน`,
+      type: "month",
+      monthCount: months,
+    };
+  }
+
+  // Fallback กรณีไม่มี inDate/outDate แต่ totalHours >= 480 (20 วันขึ้นไป)
+  // 20-30 วัน (480 - 720 ชม.) = 1 เดือน
+  if (totalHours <= 720) {
+    return {
+      price: MONTHLY_RATE,
+      label: "1 เดือน",
+      type: "month",
+      monthCount: 1,
+    };
+  }
+
   const roughMonths = Math.floor(totalHours / (24 * 30));
   const remainHours = totalHours % (24 * 30);
-  const remainPart = calcDayPrice(remainHours);
-  const total = roughMonths * 2000 + (remainHours > 0 ? remainPart.price : 0);
+  const extra = calcExtraAfterMonth(remainHours);
+
+  if (extra.isFullMonth) {
+    const totalMonths = roughMonths + 1;
+    return {
+      price: totalMonths * MONTHLY_RATE,
+      label: `${totalMonths} เดือน`,
+      type: "month",
+      monthCount: totalMonths,
+    };
+  }
+
+  const total = roughMonths * MONTHLY_RATE + extra.price;
   return {
     price: total,
-    label: remainHours > 0 ? `${roughMonths} เดือน + ${remainPart.label}` : `${roughMonths} เดือน`,
+    label: extra.label ? `${roughMonths} เดือน + ${extra.label}` : `${roughMonths} เดือน`,
     type: "month",
     monthCount: roughMonths,
+    remainLabel: extra.label || undefined,
   };
 }

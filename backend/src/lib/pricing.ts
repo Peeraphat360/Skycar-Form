@@ -19,6 +19,9 @@ const DAY_RATES_EXTRA: Record<number, number> = {
   14: 1450, 15: 1550, 16: 1650, 17: 1750, 18: 1850, 19: 1950,
 };
 
+const MONTHLY_RATE = 2000;
+const MONTH_EXTRA_DAY_RATE = 67;
+
 function calcDayPrice(totalHours: number): { price: number } {
   if (totalHours < 24) {
     if (totalHours < 1) return { price: 20 };
@@ -30,7 +33,7 @@ function calcDayPrice(totalHours: number): { price: number } {
   const fullDays = Math.floor(totalHours / 24);
   const remainHours = totalHours % 24;
 
-  if (fullDays >= 20) return { price: 2000 };
+  if (fullDays >= 20) return { price: MONTHLY_RATE };
 
   const basePrice = DAY_RATES[fullDays] ?? 150;
   const extraPrice = DAY_RATES_EXTRA[fullDays] ?? basePrice + 75;
@@ -39,8 +42,32 @@ function calcDayPrice(totalHours: number): { price: number } {
   if (remainHours <= 18) return { price: extraPrice };
 
   const nextDay = fullDays + 1;
-  if (nextDay >= 20) return { price: 2000 };
+  if (nextDay >= 20) return { price: MONTHLY_RATE };
   return { price: DAY_RATES[nextDay] ?? basePrice + 150 };
+}
+
+function calcExtraAfterMonth(remainHours: number): { price: number; isFullMonth: boolean } {
+  if (remainHours <= 2) return { price: 0, isFullMonth: false };
+  const fullDays = Math.floor(remainHours / 24);
+  const extraHours = remainHours % 24;
+
+  if (fullDays >= 20) return { price: MONTHLY_RATE, isFullMonth: true };
+
+  const basePrice = fullDays * MONTH_EXTRA_DAY_RATE;
+  const halfDayExtra = 35;
+
+  if (extraHours === 0 || extraHours <= 2) {
+    if (fullDays === 0) return { price: 0, isFullMonth: false };
+    return { price: basePrice, isFullMonth: false };
+  }
+  if (extraHours <= 18) {
+    if (fullDays === 0) return { price: halfDayExtra, isFullMonth: false };
+    return { price: basePrice + halfDayExtra, isFullMonth: false };
+  }
+
+  const nextDay = fullDays + 1;
+  if (nextDay >= 20) return { price: MONTHLY_RATE, isFullMonth: true };
+  return { price: nextDay * MONTH_EXTRA_DAY_RATE, isFullMonth: false };
 }
 
 function countCalendarMonths(inDate: Date, outDate: Date): { months: number; remainMs: number } {
@@ -58,23 +85,25 @@ function countCalendarMonths(inDate: Date, outDate: Date): { months: number; rem
 }
 
 function calcSkyPrice(totalHours: number, inDate?: Date, outDate?: Date): number {
-  if (inDate && outDate && totalHours >= 480) {
-    const { months, remainMs } = countCalendarMonths(inDate, outDate);
-    const monthPrice = months * 2000;
+  if (totalHours < 480) return calcDayPrice(totalHours).price;
 
-    if (remainMs <= 0 || months === 0) {
-      if (months === 0) return calcDayPrice(totalHours).price;
-      return monthPrice;
-    }
-    const remainHours = remainMs / 3600000;
-    return monthPrice + calcDayPrice(remainHours).price;
+  if (inDate && outDate) {
+    const { months, remainMs } = countCalendarMonths(inDate, outDate);
+    if (months === 0) return MONTHLY_RATE;
+
+    const remainHours = remainMs > 0 ? remainMs / 3600000 : 0;
+    const extra = calcExtraAfterMonth(remainHours);
+    if (extra.isFullMonth) return (months + 1) * MONTHLY_RATE;
+    return months * MONTHLY_RATE + extra.price;
   }
 
-  if (totalHours < 480) return calcDayPrice(totalHours).price;
+  if (totalHours <= 720) return MONTHLY_RATE;
 
   const roughMonths = Math.floor(totalHours / (24 * 30));
   const remainHours = totalHours % (24 * 30);
-  return roughMonths * 2000 + (remainHours > 0 ? calcDayPrice(remainHours).price : 0);
+  const extra = calcExtraAfterMonth(remainHours);
+  if (extra.isFullMonth) return (roughMonths + 1) * MONTHLY_RATE;
+  return roughMonths * MONTHLY_RATE + extra.price;
 }
 
 // ── ค่าบริการรับส่งนอกเวลา (นอกเวลา 06:00–24:00 น. คือก่อน 06:00 น. → +50 ต่อเที่ยว) ──
