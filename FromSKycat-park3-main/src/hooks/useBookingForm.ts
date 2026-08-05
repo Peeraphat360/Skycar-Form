@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { calcSkyPrice, SkyPriceResult } from "../constants/pricing";
+import { DEFAULT_CAR_MASTER_DATA, GroupedCarData } from "../constants/cars";
 import { ReceiptData } from "../components/ReceiptCard";
 import { submitBooking } from "../api/bookings";
 import {
@@ -28,11 +29,6 @@ export interface BookingFormData {
   checkoutMinute: string;
   coupon: string;
   specialNote: string;
-}
-
-export interface GroupedCarData {
-  brands: string[];
-  models: Record<string, string[]>;
 }
 
 // map vehicle_type (db value) → ชื่อประเภทไทยที่ฟอร์มใช้ (ตรงกับ routes/cars.ts)
@@ -72,12 +68,11 @@ function checkIsOffHours(hour: string, minute: string): boolean {
   return t < 6 * 60; // ก่อน 06:00 น.
 }
 
-// ── In-Memory Global Car Data Cache (Instant 0ms dropdowns) ──
-let globalCarTree: Record<string, GroupedCarData> | null = null;
+// ── In-Memory Global Car Data Cache (Instant default from local master data) ──
+let globalCarTree: Record<string, GroupedCarData> = DEFAULT_CAR_MASTER_DATA;
 let globalCarTreePromise: Promise<Record<string, GroupedCarData> | null> | null = null;
 
 async function fetchAllCarData(): Promise<Record<string, GroupedCarData> | null> {
-  if (globalCarTree) return globalCarTree;
   if (globalCarTreePromise) return globalCarTreePromise;
 
   globalCarTreePromise = (async () => {
@@ -89,7 +84,7 @@ async function fetchAllCarData(): Promise<Record<string, GroupedCarData> | null>
       if (!res.ok) return null;
       const json = await res.json();
       if (json.success && json.data) {
-        globalCarTree = json.data;
+        globalCarTree = { ...DEFAULT_CAR_MASTER_DATA, ...json.data };
         return globalCarTree;
       }
       return null;
@@ -114,20 +109,19 @@ export function useBookingForm(
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
-  // ── ข้อมูลรถยนต์ (Instant In-Memory Tree) ──
-  const [carTree, setCarTree] = useState<Record<string, GroupedCarData> | null>(globalCarTree);
-  const [carTypes, setCarTypes] = useState<string[]>(() =>
-    globalCarTree ? Object.keys(globalCarTree) : []
-  );
+  // ── ข้อมูลรถยนต์ (Instant Local Master Tree) ──
+  const [carTree, setCarTree] = useState<Record<string, GroupedCarData>>(globalCarTree);
+  const [carTypes, setCarTypes] = useState<string[]>(() => Object.keys(globalCarTree));
 
   const today = useMemo(() => getLocalTodayString(), []);
+  const initialType = useMemo(() => Object.keys(globalCarTree)[0] || "รถเก๋ง (Sedan)", []);
 
   const [form, setForm] = useState<BookingFormData>(() => ({
     name: "",
     phone: "",
     phoneAlt: "",
     plate: "",
-    type: "",
+    type: initialType,
     brand: "",
     model: "",
     checkinDate: today,
@@ -140,7 +134,7 @@ export function useBookingForm(
     specialNote: "",
   }));
 
-  // ── โหลดข้อมูลรถยนต์ทั้งหมดแบบ One-Shot ครั้งเดียว (พร้อม Cache) ──
+  // ── ซิงค์ข้อมูลรถยนต์ใหม่จาก API เบื้องหลัง (ไม่บล็อก UI) ──
   useEffect(() => {
     let active = true;
     fetchAllCarData()
@@ -149,18 +143,15 @@ export function useBookingForm(
         setCarTree(tree);
         const types = Object.keys(tree);
         setCarTypes(types);
-        if (types.length) {
-          setForm((f) => ({ ...f, type: f.type || types[0] }));
-        }
       })
       .catch(() => {
-        if (active) addNotif("โหลดข้อมูลรถไม่ได้", "ไม่สามารถเชื่อมต่อ API", "error");
+        // เงียบไว้เนื่องจากมี DEFAULT_CAR_MASTER_DATA สำรองอยู่แล้ว ไม่ทำให้ผู้ใช้สะดุด
       });
 
     return () => {
       active = false;
     };
-  }, [addNotif]);
+  }, []);
 
   // Derived Instant Brands (0ms)
   const carBrands = useMemo(() => {
@@ -212,7 +203,7 @@ export function useBookingForm(
         phone: f.phone || pf.phone,
         phoneAlt: f.phoneAlt || pf.phoneAlt,
         plate: f.plate || pf.plate,
-        type: f.type || pf.type,
+        type: f.type || pf.type || initialType,
         brand: f.brand || pf.brand,
         model: f.model || pf.model,
       }));
@@ -223,7 +214,7 @@ export function useBookingForm(
     return () => {
       active = false;
     };
-  }, []);
+  }, [initialType]);
 
   // ── จำลูกค้าเดิมจากเบอร์โทร (พร้อม In-Memory Cache) ──
   const [returningVisits, setReturningVisits] = useState<number | null>(null);
@@ -479,7 +470,7 @@ export function useBookingForm(
       phone: f.phone || pf?.phone || "",
       phoneAlt: f.phoneAlt || pf?.phoneAlt || "",
       plate: f.plate || pf?.plate || "",
-      type: f.type || pf?.type || "",
+      type: f.type || pf?.type || initialType,
       brand: f.brand || pf?.brand || "",
       model: f.model || pf?.model || "",
       coupon: "",
@@ -488,7 +479,7 @@ export function useBookingForm(
     setAppliedCoupon("");
     setCouponError("");
     bookingIdRef.current = generateBookingId();
-  }, []);
+  }, [initialType]);
 
   // ── Return ทุกอย่างรวมกัน ──
   return {
