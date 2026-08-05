@@ -1,10 +1,34 @@
-import { useState, useRef, useEffect } from "react";
-import { calcSkyPrice } from "../constants/pricing";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { calcSkyPrice, SkyPriceResult } from "../constants/pricing";
 import { ReceiptData } from "../components/ReceiptCard";
 import { submitBooking } from "../api/bookings";
-import { getCustomerProfile, lookupCustomerByPhone, postConsent, deleteMyData } from "../api/customer";
+import {
+  getCustomerProfile,
+  lookupCustomerByPhone,
+  postConsent,
+  deleteMyData,
+} from "../api/customer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+// ─── Constants & Types ────────────────────────────────────────────────────────
+export interface BookingFormData {
+  name: string;
+  phone: string;
+  phoneAlt: string;
+  plate: string;
+  type: string;
+  brand: string;
+  model: string;
+  checkinDate: string;
+  checkinHour: string;
+  checkinMinute: string;
+  checkoutDate: string;
+  checkoutHour: string;
+  checkoutMinute: string;
+  coupon: string;
+  specialNote: string;
+}
 
 // map vehicle_type (db value) → ชื่อประเภทไทยที่ฟอร์มใช้ (ตรงกับ routes/cars.ts)
 const TYPE_DB_TO_THAI: Record<string, string> = {
@@ -15,54 +39,110 @@ const TYPE_DB_TO_THAI: Record<string, string> = {
   supercar: "รถซุปเปอร์คาร์ (Supercar)",
 };
 
-export function useBookingForm(addNotif: (title: string, message: string, type?: string) => void) {
+// ค่าบริการรับส่งนอกเวลา (นอกเวลา 06:00–24:00 น. คือก่อน 06:00 น. → +50 ต่อเที่ยว)
+export const OFF_HOURS_FEE = 50;
 
+// COUPONS: รายการโค้ดส่วนลด (โค้ด → จำนวนเงินลด)
+export const COUPONS: Record<string, number> = {
+  PROMO50: 50,
+  WELCOME100: 100,
+  SAVE20: 20,
+  SKY20: 20,
+};
+
+function getLocalTodayString(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function generateBookingId(): string {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const randStr = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `SKY-${dateStr}-${randStr}`;
+}
+
+function checkIsOffHours(hour: string, minute: string): boolean {
+  const t = parseInt(hour || "0", 10) * 60 + parseInt(minute || "0", 10);
+  return t < 6 * 60; // ก่อน 06:00 น.
+}
+
+// ─── Hook Definition ──────────────────────────────────────────────────────────
+export function useBookingForm(
+  addNotif: (title: string, message: string, type?: string) => void
+) {
   // ── State ──
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
-  const [waitlisted, setWaitlisted] = useState(false);       // true = ตอนจองช่องเต็ม → เข้าคิวรอ (ยังไม่มีที่จอด)
-  const [isSubmitting, setIsSubmitting] = useState(false);   // กันกดยืนยันซ้ำ (ใช้คุม UI)
-  const submittingRef = useRef(false);                       // กันกดรัวๆ ใน frame เดียว (sync)
+  const [waitlisted, setWaitlisted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   // ── ข้อมูลรถจาก API ──
-  const [carTypes, setCarTypes]   = useState<string[]>([]);
+  const [carTypes, setCarTypes] = useState<string[]>([]);
   const [carBrands, setCarBrands] = useState<string[]>([]);
   const [carModels, setCarModels] = useState<string[]>([]);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = useMemo(() => getLocalTodayString(), []);
 
-  const [form, setForm] = useState({
-    name: "", phone: "", phoneAlt: "", plate: "",
-    type: "", brand: "", model: "",
-    checkinDate: today, checkinHour: "08", checkinMinute: "00",
-    checkoutDate: today, checkoutHour: "08", checkoutMinute: "00",
-    coupon: "", specialNote: "",
-  });
+  const [form, setForm] = useState<BookingFormData>(() => ({
+    name: "",
+    phone: "",
+    phoneAlt: "",
+    plate: "",
+    type: "",
+    brand: "",
+    model: "",
+    checkinDate: today,
+    checkinHour: "08",
+    checkinMinute: "00",
+    checkoutDate: today,
+    checkoutHour: "08",
+    checkoutMinute: "00",
+    coupon: "",
+    specialNote: "",
+  }));
 
   // ── โหลดประเภทรถตอนเริ่ม ──
   useEffect(() => {
+    let active = true;
     fetch(`${API_URL}/api/cars/types`)
-      .then(r => r.json())
-      .then(res => {
+      .then((r) => r.json())
+      .then((res) => {
+        if (!active) return;
         setCarTypes(res.data || []);
-        // ตั้ง default เฉพาะตอนยังว่าง — กันทับค่าที่ prefill จากโปรไฟล์ลูกค้าเดิม
-        if (res.data?.length) setForm(f => ({ ...f, type: f.type || res.data[0] }));
+        if (res.data?.length) {
+          setForm((f) => ({ ...f, type: f.type || res.data[0] }));
+        }
       })
-      .catch(() => addNotif("โหลดข้อมูลรถไม่ได้", "ไม่สามารถเชื่อมต่อ API", "error"));
-  }, []);
+      .catch(() => {
+        if (active) addNotif("โหลดข้อมูลรถไม่ได้", "ไม่สามารถเชื่อมต่อ API", "error");
+      });
 
-  // ── จดจำลูกค้าเดิม: ดึงโปรไฟล์มา pre-fill + เช็ค consent PDPA (หน้า /book login แล้วเสมอ) ──
+    return () => {
+      active = false;
+    };
+  }, [addNotif]);
+
+  // ── จดจำลูกค้าเดิม: ดึงโปรไฟล์มา pre-fill + เช็ค consent PDPA ──
   const [consentRequired, setConsentRequired] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
-  // เก็บค่าที่ใช้ pre-fill ไว้ (รูปแบบพร้อมใส่ฟอร์ม) เพื่อนำกลับมาใช้ตอนกด "จองใหม่"
   const prefillRef = useRef<{
-    name: string; phone: string; phoneAlt: string; plate: string;
-    type: string; brand: string; model: string;
+    name: string;
+    phone: string;
+    phoneAlt: string;
+    plate: string;
+    type: string;
+    brand: string;
+    model: string;
   } | null>(null);
+
   useEffect(() => {
+    let active = true;
     (async () => {
       const profile = await getCustomerProfile();
-      if (!profile) return;
+      if (!active || !profile) return;
+
       setConsentRequired(!profile.user.consentPdpa);
       const p = profile.prefill;
       const pf = {
@@ -74,76 +154,96 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
         brand: p.car_brand || "",
         model: p.car_model || "",
       };
-      prefillRef.current = pf; // เก็บไว้ใช้ตอน resetForm (กด "จองใหม่")
-      // เติมเฉพาะช่องที่ยังว่าง — ไม่ทับสิ่งที่ผู้ใช้เริ่มพิมพ์ไปแล้ว
-      setForm(f => ({
+      prefillRef.current = pf;
+
+      setForm((f) => ({
         ...f,
-        name:     f.name     || pf.name,
-        phone:    f.phone    || pf.phone,
+        name: f.name || pf.name,
+        phone: f.phone || pf.phone,
         phoneAlt: f.phoneAlt || pf.phoneAlt,
-        plate:    f.plate    || pf.plate,
-        type:     f.type     || pf.type,
-        brand:    f.brand    || pf.brand,
-        model:    f.model    || pf.model,
+        plate: f.plate || pf.plate,
+        type: f.type || pf.type,
+        brand: f.brand || pf.brand,
+        model: f.model || pf.model,
       }));
+
       if (pf.name || pf.plate) setPrefilled(true);
     })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // ── จำลูกค้าเดิมจาก "เบอร์โทร" — พอกรอกเบอร์ครบ เช็กประวัติ (รองรับลูกค้าเก่าที่
-  //    เพิ่ง login LINE ครั้งแรก: ข้อมูลเดิมเป็น walk-in ไม่มี LINE → /profile หาไม่เจอ) ──
-  const [returningVisits, setReturningVisits] = useState<number | null>(null); // null=ยังไม่รู้/ลูกค้าใหม่
+  // ── จำลูกค้าเดิมจากเบอร์โทร ──
+  const [returningVisits, setReturningVisits] = useState<number | null>(null);
   const lastLookupRef = useRef<string>("");
-  const checkReturningByPhone = async (rawPhone: string) => {
+
+  const checkReturningByPhone = useCallback(async (rawPhone: string) => {
     const digits = (rawPhone || "").replace(/\D/g, "");
-    if (digits.length < 9) { setReturningVisits(null); return; }
-    if (lastLookupRef.current === digits) return;   // กันยิงซ้ำเบอร์เดิม
+    if (digits.length < 9) {
+      setReturningVisits(null);
+      return;
+    }
+    if (lastLookupRef.current === digits) return;
     lastLookupRef.current = digits;
 
     const r = await lookupCustomerByPhone(digits);
-    if (!r.found || !r.prefill) { setReturningVisits(null); return; }
+    if (!r.found || !r.prefill) {
+      setReturningVisits(null);
+      return;
+    }
     setReturningVisits(r.visitCount ?? 0);
 
     const p = r.prefill;
-    setForm(f => {
-      // เติมรถให้ก็ต่อเมื่อผู้ใช้ยังไม่เริ่มเลือกยี่ห้อ/รุ่นเอง (default brand/model = "")
+    setForm((f) => {
       const noVehicleYet = !f.brand && !f.model;
       return {
         ...f,
-        name:     f.name     || p.name || "",
+        name: f.name || p.name || "",
         phoneAlt: f.phoneAlt || p.phone_alt || "",
-        plate:    f.plate    || p.plate || "",
-        type:     noVehicleYet && p.vehicle_type ? (TYPE_DB_TO_THAI[p.vehicle_type] || f.type) : f.type,
-        brand:    noVehicleYet ? (p.car_brand || f.brand) : f.brand,
-        model:    noVehicleYet ? (p.car_model || f.model) : f.model,
+        plate: f.plate || p.plate || "",
+        type: noVehicleYet && p.vehicle_type ? (TYPE_DB_TO_THAI[p.vehicle_type] || f.type) : f.type,
+        brand: noVehicleYet ? (p.car_brand || f.brand) : f.brand,
+        model: noVehicleYet ? (p.car_model || f.model) : f.model,
       };
     });
-    if (!prefilled && (p.name || p.plate)) setPrefilled(true);
-  };
+    if (p.name || p.plate) setPrefilled(true);
+  }, []);
 
-  // ยอมรับ consent → บันทึกหลักฐานที่ backend
-  const acceptConsent = async () => {
+  // ยอมรับ consent
+  const acceptConsent = useCallback(async () => {
     const ok = await postConsent();
     if (ok) setConsentRequired(false);
     else addNotif("บันทึกความยินยอมไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง", "error");
-  };
+  }, [addNotif]);
 
-  // PDPA: ขอลบข้อมูลส่วนบุคคล → backend ลบ/ปกปิด แล้ว logout → กลับหน้า login
-  const requestErasure = async () => {
+  // ลบข้อมูล PDPA
+  const requestErasure = useCallback(async () => {
     const ok = await deleteMyData();
     if (ok) {
       window.location.href = "/login";
     } else {
       addNotif("ลบข้อมูลไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง", "error");
     }
-  };
+  }, [addNotif]);
 
   // ── โหลดยี่ห้อเมื่อเปลี่ยนประเภท ──
   useEffect(() => {
     if (!form.type) return;
+    let active = true;
     fetch(`${API_URL}/api/cars/brands?type=${encodeURIComponent(form.type)}`)
-      .then(r => r.json())
-      .then(res => setCarBrands(res.data || []));
+      .then((r) => r.json())
+      .then((res) => {
+        if (active) setCarBrands(res.data || []);
+      })
+      .catch(() => {
+        if (active) setCarBrands([]);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [form.type]);
 
   // ── โหลดรุ่นเมื่อเปลี่ยนยี่ห้อ ──
@@ -152,56 +252,87 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
       setCarModels([]);
       return;
     }
-    fetch(`${API_URL}/api/cars/models?type=${encodeURIComponent(form.type)}&brand=${encodeURIComponent(form.brand)}`)
-      .then(r => r.json())
-      .then(res => setCarModels(res.data || []));
+    let active = true;
+    fetch(
+      `${API_URL}/api/cars/models?type=${encodeURIComponent(form.type)}&brand=${encodeURIComponent(form.brand)}`
+    )
+      .then((r) => r.json())
+      .then((res) => {
+        if (active) setCarModels(res.data || []);
+      })
+      .catch(() => {
+        if (active) setCarModels([]);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [form.type, form.brand]);
 
   // ── handleChange ──
-  const handleChange = (field: string, value: string) => {
-    setForm(prev => {
+  const handleChange = useCallback((field: string, value: string) => {
+    setForm((prev) => {
       const next = { ...prev, [field]: value };
-      if (field === "type")  { next.brand = ""; next.model = ""; }
-      if (field === "brand") { next.model = ""; }
+      if (field === "type") {
+        next.brand = "";
+        next.model = "";
+      }
+      if (field === "brand") {
+        next.model = "";
+      }
       return next;
     });
-  };
+  }, []);
 
-  // ── คำนวณเวลาและราคา ──
-  const getTotalHours = (): number => {
-    const dIn  = new Date(`${form.checkinDate}T${form.checkinHour.padStart(2,"0")}:${form.checkinMinute}:00`).getTime();
-    const dOut = new Date(`${form.checkoutDate}T${form.checkoutHour.padStart(2,"0")}:${form.checkoutMinute}:00`).getTime();
+  // ── คำนวณเวลาและราคา (Memoized) ──
+  const totalHours = useMemo(() => {
+    const dIn = new Date(
+      `${form.checkinDate}T${form.checkinHour.padStart(2, "0")}:${form.checkinMinute}:00`
+    ).getTime();
+    const dOut = new Date(
+      `${form.checkoutDate}T${form.checkoutHour.padStart(2, "0")}:${form.checkoutMinute}:00`
+    ).getTime();
     return Math.max(0, (dOut - dIn) / 3600000);
-  };
+  }, [form.checkinDate, form.checkinHour, form.checkinMinute, form.checkoutDate, form.checkoutHour, form.checkoutMinute]);
 
-  const totalHours = getTotalHours();
-  const inDateObj  = new Date(`${form.checkinDate}T${form.checkinHour.padStart(2,"0")}:${form.checkinMinute}:00`);
-  const outDateObj = new Date(`${form.checkoutDate}T${form.checkoutHour.padStart(2,"0")}:${form.checkoutMinute}:00`);
-  const priceResult = calcSkyPrice(totalHours, inDateObj, outDateObj);
+  const priceResult: SkyPriceResult = useMemo(() => {
+    const inDateObj = new Date(
+      `${form.checkinDate}T${form.checkinHour.padStart(2, "0")}:${form.checkinMinute}:00`
+    );
+    const outDateObj = new Date(
+      `${form.checkoutDate}T${form.checkoutHour.padStart(2, "0")}:${form.checkoutMinute}:00`
+    );
+    return calcSkyPrice(totalHours, inDateObj, outDateObj);
+  }, [totalHours, form.checkinDate, form.checkinHour, form.checkinMinute, form.checkoutDate, form.checkoutHour, form.checkoutMinute]);
 
-  // ── ค่าบริการรับส่งนอกเวลา (นอกเวลา 06:00–24:00 น. คือก่อน 06:00 น. → +50 ต่อเที่ยว) ──
-  const OFF_HOURS_FEE = 50;
-  const isOffHours = (hour: string, minute: string): boolean => {
-    const t = parseInt(hour || "0", 10) * 60 + parseInt(minute || "0", 10);
-    return t < 6 * 60;                          // ก่อน 06:00 น.
-  };
-  const checkinOffHours  = isOffHours(form.checkinHour, form.checkinMinute);
-  const checkoutOffHours = isOffHours(form.checkoutHour, form.checkoutMinute);
-  const offHoursSurcharge =
-    (checkinOffHours ? OFF_HOURS_FEE : 0) + (checkoutOffHours ? OFF_HOURS_FEE : 0);
+  const checkinOffHours = useMemo(
+    () => checkIsOffHours(form.checkinHour, form.checkinMinute),
+    [form.checkinHour, form.checkinMinute]
+  );
+  const checkoutOffHours = useMemo(
+    () => checkIsOffHours(form.checkoutHour, form.checkoutMinute),
+    [form.checkoutHour, form.checkoutMinute]
+  );
+
+  const offHoursSurcharge = useMemo(() => {
+    return (checkinOffHours ? OFF_HOURS_FEE : 0) + (checkoutOffHours ? OFF_HOURS_FEE : 0);
+  }, [checkinOffHours, checkoutOffHours]);
 
   // ── คูปองและส่วนลด ──
-  // COUPONS: รายการโค้ดส่วนลด (โค้ด → จำนวนเงินลด)
-  const COUPONS: Record<string, number> = { PROMO50: 50, WELCOME100: 100, SAVE20: 20, SKY20: 20 };
-  // appliedCoupon = โค้ดที่ลูกค้ากด "ใช้คูปอง" แล้ว (ไม่ใช่ form.coupon ที่กำลังพิมพ์)
   const [appliedCoupon, setAppliedCoupon] = useState<string>("");
   const [couponError, setCouponError] = useState<string>("");
-  const discount = COUPONS[appliedCoupon] ?? 0;
-  const total    = Math.max(0, priceResult.price + offHoursSurcharge - discount);
+  const discount = useMemo(() => COUPONS[appliedCoupon] ?? 0, [appliedCoupon]);
+  const total = useMemo(
+    () => Math.max(0, priceResult.price + offHoursSurcharge - discount),
+    [priceResult.price, offHoursSurcharge, discount]
+  );
 
-  const applyCoupon = () => {
+  const applyCoupon = useCallback(() => {
     const code = form.coupon.trim().toUpperCase();
-    if (!code) { setCouponError("กรุณาพิมพ์โค้ดส่วนลดก่อน"); return; }
+    if (!code) {
+      setCouponError("กรุณาพิมพ์โค้ดส่วนลดก่อน");
+      return;
+    }
     if (COUPONS[code] !== undefined) {
       setAppliedCoupon(code);
       setCouponError("");
@@ -209,37 +340,61 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
       setAppliedCoupon("");
       setCouponError("โค้ดส่วนลดไม่ถูกต้องหรือหมดอายุแล้ว");
     }
-  };
+  }, [form.coupon]);
+
+  const removeCoupon = useCallback(() => {
+    setAppliedCoupon("");
+    setCouponError("");
+    setForm((f) => ({ ...f, coupon: "" }));
+  }, []);
 
   // ── Validation ──
-  const validateStep1 = () => {
-    if (!form.name.trim())  { addNotif("กรุณากรอกชื่อ-นามสกุล", "ชื่อเป็นข้อมูลสำคัญสำหรับการจอง", "error"); return false; }
-    if (!form.phone.trim() || form.phone.replace(/\D/g,"").length < 9) { addNotif("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง", "ต้องมีเลขอย่างน้อย 9 หลัก", "error"); return false; }
-    if (!form.brand) { addNotif("กรุณาเลือกยี่ห้อรถ", "เลือกประเภทรถก่อน จากนั้นเลือกยี่ห้อรถ", "error"); return false; }
-    if (!form.model) { addNotif("กรุณาเลือกรุ่นรถ", "เลือกยี่ห้อรถก่อน จากนั้นเลือกรุ่นรถ", "error"); return false; }
+  const validateStep1 = useCallback(() => {
+    if (!form.name.trim()) {
+      addNotif("กรุณากรอกชื่อ-นามสกุล", "ชื่อเป็นข้อมูลสำคัญสำหรับการจอง", "error");
+      return false;
+    }
+    if (!form.phone.trim() || form.phone.replace(/\D/g, "").length < 9) {
+      addNotif("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง", "ต้องมีเลขอย่างน้อย 9 หลัก", "error");
+      return false;
+    }
+    if (!form.brand) {
+      addNotif("กรุณาเลือกยี่ห้อรถ", "เลือกประเภทรถก่อน จากนั้นเลือกยี่ห้อรถ", "error");
+      return false;
+    }
+    if (!form.model) {
+      addNotif("กรุณาเลือกรุ่นรถ", "เลือกยี่ห้อรถก่อน จากนั้นเลือกรุ่นรถ", "error");
+      return false;
+    }
     return true;
-  };
+  }, [form.name, form.phone, form.brand, form.model, addNotif]);
 
-  const validateStep2 = () => {
-    if (totalHours <= 0) { addNotif("วันที่/เวลาออกรถไม่ถูกต้อง", "วันที่ออกรถต้องมาหลังวันที่เข้าจอด", "error"); return false; }
+  const validateStep2 = useCallback(() => {
+    if (totalHours <= 0) {
+      addNotif("วันที่/เวลาออกรถไม่ถูกต้อง", "วันที่ออกรถต้องมาหลังวันที่เข้าจอด", "error");
+      return false;
+    }
     return true;
-  };
+  }, [totalHours, addNotif]);
 
-  // ── Booking ID และ Receipt ──
-  const bookingIdRef = useRef(`SKY-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.random().toString(36).slice(2,6).toUpperCase()}`);
+  // ── Booking ID และ Receipt Data ──
+  const bookingIdRef = useRef<string>(generateBookingId());
 
-  const receiptData: ReceiptData = {
+  const receiptData: ReceiptData = useMemo(() => ({
     bookingId: bookingIdRef.current,
-    form, priceResult, discount, total,
+    form,
+    priceResult,
+    discount,
+    total,
     surcharge: offHoursSurcharge,
     surchargeIn: checkinOffHours ? OFF_HOURS_FEE : 0,
     surchargeOut: checkoutOffHours ? OFF_HOURS_FEE : 0,
-  };
+  }), [form, priceResult, discount, total, offHoursSurcharge, checkinOffHours, checkoutOffHours]);
 
   // ── Submit ส่งข้อมูลไป Backend ──
-  const handleSubmit = async () => {
-    if (submittingRef.current || submitted) return;   // กันกดซ้ำ (sync — กันกดรัวๆ)
-    if (consentRequired) {                            // ต้องยอมรับ PDPA ก่อนเก็บข้อมูล
+  const handleSubmit = useCallback(async () => {
+    if (submittingRef.current || submitted) return;
+    if (consentRequired) {
       addNotif("กรุณายอมรับความยินยอมก่อน", "ต้องยินยอมการเก็บข้อมูลส่วนบุคคลก่อนทำการจอง", "error");
       return;
     }
@@ -247,90 +402,123 @@ export function useBookingForm(addNotif: (title: string, message: string, type?:
     setIsSubmitting(true);
     try {
       const resp = await submitBooking({
-        id:            bookingIdRef.current,
-        name:          form.name,
-        phone:         form.phone,
-        phone_alt:     form.phoneAlt || null,
-        plate:         form.plate || null,
-        car_type:      form.type,
-        car_brand:     form.brand,
-        car_model:     form.model,
-        checkin_date:  form.checkinDate,
-        checkin_hour:  form.checkinHour,
+        id: bookingIdRef.current,
+        name: form.name,
+        phone: form.phone,
+        phone_alt: form.phoneAlt || null,
+        plate: form.plate || null,
+        car_type: form.type,
+        car_brand: form.brand,
+        car_model: form.model,
+        checkin_date: form.checkinDate,
+        checkin_hour: form.checkinHour,
         checkin_minute: form.checkinMinute,
         checkout_date: form.checkoutDate,
         checkout_hour: form.checkoutHour,
         checkout_minute: form.checkoutMinute,
-        coupon:        appliedCoupon || (form.coupon ? form.coupon.trim().toUpperCase() : null),
-        discount:      discount,
-        price_label:   priceResult.label,
-        period:        priceResult.type,
-        total:         total,
-        status:        "pending",
+        coupon: appliedCoupon || (form.coupon ? form.coupon.trim().toUpperCase() : null),
+        discount: discount,
+        price_label: priceResult.label,
+        period: priceResult.type,
+        total: total,
+        status: "pending",
       });
-      // backend คืน waitlisted=true เมื่อช่องเต็ม (booking ถูกเก็บเป็นรายการรอคิว)
+
       const isWaitlisted = !!(resp as any)?.waitlisted;
       setWaitlisted(isWaitlisted);
-      setSubmitted(true);   // ไปหน้าผลลัพธ์ — คง isSubmitting ไว้กันกดซ้ำ
+      setSubmitted(true);
       if (isWaitlisted) {
         addNotif("ตอนนี้โรงจอดเต็ม", "เราบันทึกคุณเข้าคิวรอแล้ว จะแจ้งทาง LINE อัตโนมัติเมื่อมีที่ว่าง", "info");
       } else {
         addNotif("บันทึกข้อมูลเรียบร้อยแล้ว", "กำลังสร้างใบเสร็จการจอง", "success");
       }
     } catch (error: any) {
-      addNotif("เกิดข้อผิดพลาด", error.message, "error");
+      addNotif("เกิดข้อผิดพลาด", error.message || "ไม่สามารถส่งข้อมูลการจองได้", "error");
       submittingRef.current = false;
-      setIsSubmitting(false);   // ส่งไม่สำเร็จ → ให้กดใหม่ได้
+      setIsSubmitting(false);
     }
-  };
+  }, [
+    submitted,
+    consentRequired,
+    form,
+    appliedCoupon,
+    discount,
+    priceResult,
+    total,
+    addNotif,
+  ]);
 
   // ── UI Helpers ──
   const formTopRef = useRef<HTMLDivElement>(null);
-  const scrollToForm = () => {
+  const scrollToForm = useCallback(() => {
     if (formTopRef.current) {
       const y = formTopRef.current.getBoundingClientRect().top + window.scrollY - 80;
       window.scrollTo({ top: y, behavior: "smooth" });
     }
-  };
+  }, []);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setSubmitted(false);
     setWaitlisted(false);
     submittingRef.current = false;
     setIsSubmitting(false);
     setStep(1);
-    // กด "จองใหม่" → คงข้อมูลลูกค้า/รถที่เพิ่งกรอกไว้ (เหมือนเดิม) ให้จองซ้ำได้สะดวก
-    // ถ้าช่องไหนว่าง ค่อย fallback ไปค่าที่ prefill ไว้ตอนแรก; ล้างเฉพาะคูปอง/หมายเหตุ
     const pf = prefillRef.current;
-    setForm(f => ({
+    setForm((f) => ({
       ...f,
-      name:     f.name     || pf?.name     || "",
-      phone:    f.phone    || pf?.phone    || "",
+      name: f.name || pf?.name || "",
+      phone: f.phone || pf?.phone || "",
       phoneAlt: f.phoneAlt || pf?.phoneAlt || "",
-      plate:    f.plate    || pf?.plate    || "",
-      type:     f.type     || pf?.type     || "",
-      brand:    f.brand    || pf?.brand    || "",
-      model:    f.model    || pf?.model    || "",
+      plate: f.plate || pf?.plate || "",
+      type: f.type || pf?.type || "",
+      brand: f.brand || pf?.brand || "",
+      model: f.model || pf?.model || "",
       coupon: "",
       specialNote: "",
     }));
     setAppliedCoupon("");
     setCouponError("");
-    bookingIdRef.current = `SKY-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
-  };
+    bookingIdRef.current = generateBookingId();
+  }, []);
 
   // ── Return ทุกอย่างรวมกัน ──
   return {
-    step, setStep, form, handleChange, submitted, setSubmitted, waitlisted, isSubmitting,
-    totalHours, priceResult, discount, total, offHoursSurcharge,
-    checkinOffHours, checkoutOffHours,
-    validateStep1, validateStep2, receiptData,
-    formTopRef, scrollToForm, resetForm,
+    step,
+    setStep,
+    form,
+    handleChange,
+    submitted,
+    setSubmitted,
+    waitlisted,
+    isSubmitting,
+    totalHours,
+    priceResult,
+    discount,
+    total,
+    offHoursSurcharge,
+    checkinOffHours,
+    checkoutOffHours,
+    validateStep1,
+    validateStep2,
+    receiptData,
+    formTopRef,
+    scrollToForm,
+    resetForm,
     handleSubmit,
-    carTypes, carBrands, carModels,
-    consentRequired, prefilled, acceptConsent, requestErasure,
-    checkReturningByPhone, returningVisits,
-    appliedCoupon, applyCoupon, couponError,
-    removeCoupon: () => { setAppliedCoupon(""); setCouponError(""); setForm(f => ({ ...f, coupon: "" })); },
+    carTypes,
+    carBrands,
+    carModels,
+    consentRequired,
+    prefilled,
+    acceptConsent,
+    requestErasure,
+    checkReturningByPhone,
+    returningVisits,
+    appliedCoupon,
+    applyCoupon,
+    couponError,
+    removeCoupon,
   };
 }
+
+export type UseBookingFormReturn = ReturnType<typeof useBookingForm>;
