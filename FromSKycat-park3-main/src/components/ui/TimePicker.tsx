@@ -18,7 +18,9 @@ interface DrumProps {
 const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width = 88 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const hasMoved = useRef(false);
   const startY = useRef(0);
+  const startX = useRef(0);
   const startScrollTop = useRef(0);
   const animFrame = useRef<number | undefined>(undefined);
   const velocityRef = useRef(0);
@@ -50,12 +52,16 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
     const el = containerRef.current;
     if (!el) return;
     isDragging.current = true;
+    hasMoved.current = false;
     startY.current = e.clientY;
+    startX.current = e.clientX;
     startScrollTop.current = el.scrollTop;
     lastY.current = e.clientY;
     lastTime.current = Date.now();
     velocityRef.current = 0;
-    el.setPointerCapture(e.pointerId);
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch (_) {}
     if (animFrame.current) cancelAnimationFrame(animFrame.current);
   };
 
@@ -63,20 +69,43 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
     if (!isDragging.current) return;
     const el = containerRef.current;
     if (!el) return;
+    const dy = e.clientY - startY.current;
+    const dx = e.clientX - startX.current;
+    if (Math.abs(dy) > 4 || Math.abs(dx) > 4) {
+      hasMoved.current = true;
+    }
     const now = Date.now();
     const dt = now - lastTime.current;
-    const dy = e.clientY - lastY.current;
-    if (dt > 0) velocityRef.current = dy / dt;
+    const stepDy = e.clientY - lastY.current;
+    if (dt > 0) velocityRef.current = stepDy / dt;
     lastY.current = e.clientY;
     lastTime.current = now;
-    el.scrollTop = startScrollTop.current - (e.clientY - startY.current);
+    el.scrollTop = startScrollTop.current - dy;
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
     if (!isDragging.current) return;
     isDragging.current = false;
     const el = containerRef.current;
     if (!el) return;
+    try {
+      el.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+
+    // ถ้าเป็นการกดคลิกเลือกตัวเลขโดยไม่ได้ลาก (Click/Tap)
+    if (!hasMoved.current) {
+      const rect = el.getBoundingClientRect();
+      const clickY = e.clientY - rect.top;
+      const scrollY = el.scrollTop;
+      const clickedIndex = Math.floor((clickY + scrollY - ITEM_HEIGHT * 2) / ITEM_HEIGHT);
+      if (clickedIndex >= 0 && clickedIndex < items.length) {
+        scrollToIndex(clickedIndex, true);
+        onSelect(clickedIndex);
+        return;
+      }
+    }
+
+    // ถ้าเป็นการลากเลื่อน (Drag/Fling)
     let v = velocityRef.current * -15;
     const momentum = () => {
       if (Math.abs(v) < 0.5) { snapToNearest(); return; }
@@ -119,7 +148,11 @@ const DrumRoller: React.FC<DrumProps> = ({ items, selectedIndex, onSelect, width
         {items.map((item, i) => (
           <div
             key={i}
-            onClick={() => { scrollToIndex(i); onSelect(i); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              scrollToIndex(i, true);
+              onSelect(i);
+            }}
             style={{
               height: ITEM_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: i === selectedIndex ? 19 : 16,
