@@ -30,6 +30,11 @@ export interface BookingFormData {
   specialNote: string;
 }
 
+export interface GroupedCarData {
+  brands: string[];
+  models: Record<string, string[]>;
+}
+
 // map vehicle_type (db value) → ชื่อประเภทไทยที่ฟอร์มใช้ (ตรงกับ routes/cars.ts)
 const TYPE_DB_TO_THAI: Record<string, string> = {
   sedan: "รถเก๋ง (Sedan)",
@@ -67,6 +72,37 @@ function checkIsOffHours(hour: string, minute: string): boolean {
   return t < 6 * 60; // ก่อน 06:00 น.
 }
 
+// ── In-Memory Global Car Data Cache (Instant 0ms dropdowns) ──
+let globalCarTree: Record<string, GroupedCarData> | null = null;
+let globalCarTreePromise: Promise<Record<string, GroupedCarData> | null> | null = null;
+
+async function fetchAllCarData(): Promise<Record<string, GroupedCarData> | null> {
+  if (globalCarTree) return globalCarTree;
+  if (globalCarTreePromise) return globalCarTreePromise;
+
+  globalCarTreePromise = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/cars`, {
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (json.success && json.data) {
+        globalCarTree = json.data;
+        return globalCarTree;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      globalCarTreePromise = null;
+    }
+  })();
+
+  return globalCarTreePromise;
+}
+
 // ─── Hook Definition ──────────────────────────────────────────────────────────
 export function useBookingForm(
   addNotif: (title: string, message: string, type?: string) => void
@@ -78,10 +114,11 @@ export function useBookingForm(
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
-  // ── ข้อมูลรถจาก API ──
-  const [carTypes, setCarTypes] = useState<string[]>([]);
-  const [carBrands, setCarBrands] = useState<string[]>([]);
-  const [carModels, setCarModels] = useState<string[]>([]);
+  // ── ข้อมูลรถยนต์ (Instant In-Memory Tree) ──
+  const [carTree, setCarTree] = useState<Record<string, GroupedCarData> | null>(globalCarTree);
+  const [carTypes, setCarTypes] = useState<string[]>(() =>
+    globalCarTree ? Object.keys(globalCarTree) : []
+  );
 
   const today = useMemo(() => getLocalTodayString(), []);
 
@@ -103,16 +140,17 @@ export function useBookingForm(
     specialNote: "",
   }));
 
-  // ── โหลดประเภทรถตอนเริ่ม ──
+  // ── โหลดข้อมูลรถยนต์ทั้งหมดแบบ One-Shot ครั้งเดียว (พร้อม Cache) ──
   useEffect(() => {
     let active = true;
-    fetch(`${API_URL}/api/cars/types`)
-      .then((r) => r.json())
-      .then((res) => {
-        if (!active) return;
-        setCarTypes(res.data || []);
-        if (res.data?.length) {
-          setForm((f) => ({ ...f, type: f.type || res.data[0] }));
+    fetchAllCarData()
+      .then((tree) => {
+        if (!active || !tree) return;
+        setCarTree(tree);
+        const types = Object.keys(tree);
+        setCarTypes(types);
+        if (types.length) {
+          setForm((f) => ({ ...f, type: f.type || types[0] }));
         }
       })
       .catch(() => {
@@ -123,6 +161,18 @@ export function useBookingForm(
       active = false;
     };
   }, [addNotif]);
+
+  // Derived Instant Brands (0ms)
+  const carBrands = useMemo(() => {
+    if (!carTree || !form.type) return [];
+    return carTree[form.type]?.brands || [];
+  }, [carTree, form.type]);
+
+  // Derived Instant Models (0ms)
+  const carModels = useMemo(() => {
+    if (!carTree || !form.type || !form.brand || form.brand === "อื่นๆ") return [];
+    return carTree[form.type]?.models[form.brand] || [];
+  }, [carTree, form.type, form.brand]);
 
   // ── จดจำลูกค้าเดิม: ดึงโปรไฟล์มา pre-fill + เช็ค consent PDPA ──
   const [consentRequired, setConsentRequired] = useState(false);
@@ -175,7 +225,7 @@ export function useBookingForm(
     };
   }, []);
 
-  // ── จำลูกค้าเดิมจากเบอร์โทร ──
+  // ── จำลูกค้าเดิมจากเบอร์โทร (พร้อม In-Memory Cache) ──
   const [returningVisits, setReturningVisits] = useState<number | null>(null);
   const lastLookupRef = useRef<string>("");
 
@@ -227,47 +277,6 @@ export function useBookingForm(
       addNotif("ลบข้อมูลไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง", "error");
     }
   }, [addNotif]);
-
-  // ── โหลดยี่ห้อเมื่อเปลี่ยนประเภท ──
-  useEffect(() => {
-    if (!form.type) return;
-    let active = true;
-    fetch(`${API_URL}/api/cars/brands?type=${encodeURIComponent(form.type)}`)
-      .then((r) => r.json())
-      .then((res) => {
-        if (active) setCarBrands(res.data || []);
-      })
-      .catch(() => {
-        if (active) setCarBrands([]);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [form.type]);
-
-  // ── โหลดรุ่นเมื่อเปลี่ยนยี่ห้อ ──
-  useEffect(() => {
-    if (!form.type || !form.brand || form.brand === "อื่นๆ") {
-      setCarModels([]);
-      return;
-    }
-    let active = true;
-    fetch(
-      `${API_URL}/api/cars/models?type=${encodeURIComponent(form.type)}&brand=${encodeURIComponent(form.brand)}`
-    )
-      .then((r) => r.json())
-      .then((res) => {
-        if (active) setCarModels(res.data || []);
-      })
-      .catch(() => {
-        if (active) setCarModels([]);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [form.type, form.brand]);
 
   // ── handleChange ──
   const handleChange = useCallback((field: string, value: string) => {

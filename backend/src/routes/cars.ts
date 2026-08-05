@@ -46,6 +46,9 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 let carCache: CarDataCache | null = null;
 let fetchPromise: Promise<CarDataCache> | null = null;
 
+// HTTP Cache header for static responses
+const HTTP_CACHE_HEADER = "public, max-age=600, stale-while-revalidate=3600";
+
 /**
  * โหลดและจัดโครงสร้างข้อมูลรถยนต์ทั้งหมดจาก Supabase พร้อมทำ In-Memory Cache
  */
@@ -108,7 +111,7 @@ async function loadCarData(): Promise<CarDataCache> {
   }
 
   // แปลง Set เป็น Array เพื่อความสะดวกและประหยัด memory
-  const finalTypes = Array.from(rawTypes).map(t => TYPE_MAP_TO_THAI[t] || t);
+  const finalTypes = Array.from(rawTypes).map((t) => TYPE_MAP_TO_THAI[t] || t);
   const finalBrandsByType: Record<string, string[]> = {};
   for (const [k, set] of Object.entries(brandsByType)) {
     finalBrandsByType[k] = Array.from(set);
@@ -174,6 +177,7 @@ export function invalidateCarCache(): void {
 router.get("/", async (_req: Request, res: Response) => {
   try {
     const data = await getCarData();
+    res.setHeader("Cache-Control", HTTP_CACHE_HEADER);
     res.json({ success: true, data: data.allGrouped });
   } catch (error: any) {
     console.error("[CarRoute] Error GET /:", error);
@@ -188,6 +192,7 @@ router.get("/", async (_req: Request, res: Response) => {
 router.get("/types", async (_req: Request, res: Response) => {
   try {
     const data = await getCarData();
+    res.setHeader("Cache-Control", HTTP_CACHE_HEADER);
     res.json({ success: true, data: data.types });
   } catch (error: any) {
     console.error("[CarRoute] Error GET /types:", error);
@@ -209,6 +214,7 @@ router.get("/brands", async (req: Request, res: Response) => {
   try {
     const data = await getCarData();
     const brands = data.brandsByType[cleanType] || [];
+    res.setHeader("Cache-Control", HTTP_CACHE_HEADER);
     res.json({ success: true, data: brands });
   } catch (error: any) {
     console.error("[CarRoute] Error GET /brands:", error);
@@ -236,6 +242,7 @@ router.get("/models", async (req: Request, res: Response) => {
   try {
     const data = await getCarData();
     const models = data.modelsByTypeAndBrand[cacheKey] || [];
+    res.setHeader("Cache-Control", HTTP_CACHE_HEADER);
     res.json({ success: true, data: models });
   } catch (error: any) {
     console.error("[CarRoute] Error GET /models:", error);

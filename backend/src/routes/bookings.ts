@@ -3,11 +3,41 @@ import { supabase } from "../db";
 import { requireAuth } from "../middleware/auth";
 import { parseBody, bookingCreateSchema, bookingStatusSchema } from "../lib/validate";
 import { computeBookingTotal } from "../lib/pricing";
+import { TYPE_MAP_TO_ENG } from "./cars";
 import type { AuthUser } from "../types/auth";
 
 const router = Router();
 
-// ── GET /api/bookings ── เฉพาะการจองของลูกค้าที่ login อยู่ (เดิมคืนทั้งตาราง = data leak)
+// Fallback UUID if DB query fails completely
+const DEFAULT_FALLBACK_USER_ID = "fe346324-ff72-4656-9f0a-478da7c91afa";
+let cachedWalkinUserId: string | null = null;
+
+async function getWalkinUserId(): Promise<string> {
+  if (cachedWalkinUserId) return cachedWalkinUserId;
+  try {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", "walkin@skycarpark.com")
+      .limit(1);
+
+    if (users && users.length > 0) {
+      cachedWalkinUserId = users[0].id;
+      return cachedWalkinUserId;
+    }
+
+    const { data: anyUser } = await supabase.from("users").select("id").limit(1);
+    if (anyUser && anyUser.length > 0) {
+      cachedWalkinUserId = anyUser[0].id;
+      return cachedWalkinUserId;
+    }
+  } catch (err) {
+    console.error("[Bookings] Failed to query walk-in user ID:", err);
+  }
+  return DEFAULT_FALLBACK_USER_ID;
+}
+
+// ── GET /api/bookings ── เฉพาะการจองของลูกค้าที่ login อยู่
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   const userId = (req.user as AuthUser).id;
   const { data, error } = await supabase
@@ -26,7 +56,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     .from("bookings")
     .select("*")
     .eq("id", req.params.id)
-    .eq("user_id", userId) // ownership คุมในตัว query — ไม่เจอ = ไม่ใช่ของเรา
+    .eq("user_id", userId)
     .maybeSingle();
   if (error) return res.status(500).json({ success: false, error: "Failed to load booking" });
   if (!data) return res.status(404).json({ success: false, error: "Not found" });
@@ -49,63 +79,38 @@ router.post("/", async (req: Request, res: Response) => {
   const checkoutMinute = (b.checkout_minute || "00").padStart(2, "0");
   const endTime = `${checkoutDate}T${checkoutHour}:${checkoutMinute}:00`;
 
-  // Get user_id — prefer the logged-in LINE customer; otherwise fall back to walk-in.
+  // Get user_id — prefer the logged-in LINE customer; otherwise fall back to cached walk-in ID.
   const authUser = req.user as AuthUser | undefined;
-  let userId = authUser?.id ?? "fe346324-ff72-4656-9f0a-478da7c91afa"; // fallback UUID
-  if (!authUser?.id) {
-    try {
-      const { data: users } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", "walkin@skycarpark.com")
-        .limit(1);
-
-      if (users && users.length > 0) {
-        userId = users[0].id;
-      } else {
-        const { data: anyUser } = await supabase.from("users").select("id").limit(1);
-        if (anyUser && anyUser.length > 0) userId = anyUser[0].id;
-      }
-    } catch (err) {
-      console.error("Failed to query user");
-    }
-  }
+  const userId = authUser?.id ? authUser.id : await getWalkinUserId();
 
   // Map car type from Thai display name to English db value
-  const typeMapToEng: Record<string, string> = {
-    "รถเก๋ง (Sedan)": "sedan",
-    "รถกระบะ (Pickup)": "pickup",
-    "รถกระบะตู้ทึบ (Pickup Camper)": "pickup",
-    "รถ SUV": "suv",
-    "รถไฟฟ้า (EV)": "ev",
-    "รถซุปเปอร์คาร์ (Supercar)": "supercar",
-  };
-  const mappedCarType = typeMapToEng[b.car_type ?? ""] || b.car_type || null;
+  const mappedCarType = TYPE_MAP_TO_ENG[b.car_type ?? ""] || b.car_type || null;
 
   // ── ราคา: คำนวณฝั่ง server เสมอ — ไม่เชื่อ b.total ที่ client ส่งมา ──
-  // (เดิมใช้ b.total ตรงๆ → ลูกค้าแก้ยอดเป็นเท่าไรก็ได้). ใช้ค่าเดียวกับ frontend
   const { total: serverFee } = computeBookingTotal({
-    checkinDate, checkinHour, checkinMinute,
-    checkoutDate, checkoutHour, checkoutMinute,
+    checkinDate,
+    checkinHour,
+    checkinMinute,
+    checkoutDate,
+    checkoutHour,
+    checkoutMinute,
     coupon: b.coupon,
   });
 
   // จัดสรรช่อง + บันทึกการจองแบบ atomic ใน RPC เดียว — กัน double-booking
-  // RPC ปัจจุบัน (sql/online_booking_full_waitlist.sql) ตอนช่องเต็มจะ "ไม่ error"
-  // แต่บันทึก booking โดย slot_id = NULL = เข้าคิวรอ (waitlist) แทน
   const { data, error } = await supabase
     .rpc("create_online_booking", {
-      p_user_id:            userId,
-      p_start_time:         startTime,
-      p_end_time:           endTime,
-      p_customer_name:      b.name.trim(),
-      p_customer_phone:     b.phone.trim(),
+      p_user_id: userId,
+      p_start_time: startTime,
+      p_end_time: endTime,
+      p_customer_name: b.name.trim(),
+      p_customer_phone: b.phone.trim(),
       p_customer_alt_phone: b.phone_alt || null,
-      p_vehicle_plate:      b.plate || null,
-      p_vehicle_brand:      b.car_brand || null,
-      p_vehicle_model:      b.car_model || null,
-      p_vehicle_type:       mappedCarType,
-      p_fee:                serverFee,
+      p_vehicle_plate: b.plate || null,
+      p_vehicle_brand: b.car_brand || null,
+      p_vehicle_model: b.car_model || null,
+      p_vehicle_type: mappedCarType,
+      p_fee: serverFee,
     })
     .single<{ id: string; slot_id: string | null }>();
 
@@ -113,13 +118,9 @@ router.post("/", async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: "Failed to create booking" });
   }
 
-  // slot_id === null → ช่องเต็ม: booking ถูกเก็บเป็น "รายการรอคิว" แล้ว (ยังไม่มีที่จอด)
-  // ระบบจะจัดช่อง + แจ้งลูกค้าทาง LINE อัตโนมัติเมื่อมีที่ว่าง (sql/waitlist_auto_assign.sql)
-  // ส่ง flag กลับให้ฟอร์มแยกหน้า "จองสำเร็จ" กับ "เข้าคิวรอ" ให้ลูกค้าเข้าใจตรงกัน
   const waitlisted = data.slot_id === null;
 
   // ── จดจำรถของลูกค้า (เฉพาะตอน login) — pre-fill ครั้งหน้า ──
-  // ทำหลัง insert booking สำเร็จ และไม่ให้พังคำขอถ้า step นี้ล้มเหลว (best-effort)
   if (authUser?.id && b.plate) {
     void rememberVehicle(authUser.id, data.id, {
       plate_number: b.plate.trim(),
@@ -133,14 +134,19 @@ router.post("/", async (req: Request, res: Response) => {
   res.status(201).json({ success: true, data, waitlisted });
 });
 
-// upsert รถเข้าโปรไฟล์ลูกค้า + ผูก bookings.vehicle_id (best-effort, ไม่ throw ออกนอก)
+// upsert รถเข้าโปรไฟล์ลูกค้า + ผูก bookings.vehicle_id (best-effort, asynchronous)
 async function rememberVehicle(
   userId: string,
   bookingId: string,
-  v: { plate_number: string; car_brand: string | null; car_model: string | null; vehicle_type: string | null; color: string | null },
+  v: {
+    plate_number: string;
+    car_brand: string | null;
+    car_model: string | null;
+    vehicle_type: string | null;
+    color: string | null;
+  }
 ) {
   try {
-    // คันแรกของลูกค้า → ตั้งเป็น default
     const { count } = await supabase
       .from("vehicles")
       .select("id", { count: "exact", head: true })
@@ -150,7 +156,7 @@ async function rememberVehicle(
       .from("vehicles")
       .upsert(
         { ...v, user_id: userId, is_default: !count },
-        { onConflict: "user_id,plate_number" },
+        { onConflict: "user_id,plate_number" }
       )
       .select("id")
       .single();
@@ -158,7 +164,7 @@ async function rememberVehicle(
 
     await supabase.from("bookings").update({ vehicle_id: veh.id }).eq("id", bookingId);
   } catch {
-    /* best-effort — การจองสำเร็จไปแล้ว ไม่ต้องรบกวนลูกค้า */
+    /* best-effort */
   }
 }
 
