@@ -36,9 +36,12 @@ function calcDayPrice(totalHours: number): { price: number; label: string } {
   const fullDays = Math.floor(totalHours / 24);
   const remainHours = totalHours % 24;
 
+  // เงื่อนไขเดือน
   if (fullDays >= 20) return { price: MONTHLY_RATE, label: "1 เดือน" };
 
+  //คิดเป็นวัน
   const basePrice = DAY_RATES[fullDays] ?? 150;
+  //คิดเป็นครึ่งวัน เอาไปบวกเพิ่มกับตัววัน
   const extraPrice = DAY_RATES_EXTRA[fullDays] ?? basePrice + 75;
 
   if (remainHours === 0 || remainHours <= 2) {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { calcSkyPrice, SkyPriceResult } from "../constants/pricing";
 import { DEFAULT_CAR_MASTER_DATA, GroupedCarData } from "../constants/cars";
 import { ReceiptData } from "../components/ReceiptCard";
@@ -116,23 +116,30 @@ export function useBookingForm(
   const today = useMemo(() => getLocalTodayString(), []);
   const initialType = useMemo(() => Object.keys(globalCarTree)[0] || "รถเก๋ง (Sedan)", []);
 
-  const [form, setForm] = useState<BookingFormData>(() => ({
-    name: "",
-    phone: "",
-    phoneAlt: "",
-    plate: "",
-    type: initialType,
-    brand: "",
-    model: "",
-    checkinDate: today,
-    checkinHour: "08",
-    checkinMinute: "00",
-    checkoutDate: today,
-    checkoutHour: "08",
-    checkoutMinute: "00",
-    coupon: "",
-    specialNote: "",
-  }));
+  const [form, setForm] = useState<BookingFormData>(() => {
+    // ✅ ใช้ new Date() ณ ขณะที่ลูกค้าเปิดฟอร์ม → เวลาเข้าจอด real-time
+    const _now = new Date();
+    const _pad = (n: number) => String(n).padStart(2, "0");
+    const _nowHour   = _pad(_now.getHours());   // เช่น "11"
+    const _nowMinute = _pad(_now.getMinutes());  // เช่น "04"
+    return {
+      name: "",
+      phone: "",
+      phoneAlt: "",
+      plate: "",
+      type: initialType,
+      brand: "",
+      model: "",
+      checkinDate: today,
+      checkinHour:   _nowHour,    // ← เวลาปัจจุบัน (แทน "08" ตายตัว)
+      checkinMinute: _nowMinute,  // ← นาทีปัจจุบัน (แทน "00" ตายตัว)
+      checkoutDate: today,
+      checkoutHour: "08",
+      checkoutMinute: "00",
+      coupon: "",
+      specialNote: "",
+    };
+  });
 
   // ── ซิงค์ข้อมูลรถยนต์ใหม่จาก API เบื้องหลัง (ไม่บล็อก UI) ──
   useEffect(() => {
